@@ -38,20 +38,23 @@
   let moveFeedback='',moveState='',pendingMove=null;
   function selection(){
     const kind=$('kind').value;
-    $('amount-wrap').hidden=kind!=='swap';
-    $('pair-wrap').hidden=!['open','private','swap'].includes(kind);
+    const exchange=!!v?.exchange;
+    $('exchange-hint').hidden=!exchange;
+    $('kind-wrap').hidden=exchange;
+    $('amount-wrap').hidden=exchange||kind!=='swap';
+    $('pair-wrap').hidden=!exchange&&!['open','private'].includes(kind);
     const slot=Number($('pair').value), myTurn=v?.phase==='play'&&v.turn===v.me&&!v.managed?.[v.me];
     const choosing=myTurn&&!$('pair-wrap').hidden;
-    const cost={open:1,private:2,rotate1:3,rotate2:4,swap:Number($('amount').value)}[kind];
+    const cost=exchange?0:{open:1,private:2,rotate1:3,rotate2:4,swap:Number($('amount').value)}[kind];
     for(const option of Array.from($('kind').options||[])){
       const price={open:1,private:2,rotate1:3,rotate2:4,swap:1}[option.value];
       option.disabled=!!v&&price>v.points;
     }
     for(const option of Array.from($('amount').options||[]))option.disabled=!!v&&Number(option.value)>v.points;
-    $('pool').textContent=myTurn&&cost===v.points?'這步會用完點數':myTurn&&v.points<=2?'點數不足的行動已停用':'';
+    $('pool').textContent=!exchange&&myTurn&&cost===v.points?'這步會用完點數':!exchange&&myTurn&&v.points<=2?'點數不足的行動已停用':'';
     const expired=localDeadline&&Date.now()>=localDeadline;
     $('move').disabled=busy||!myTurn||cost>v.points||expired;
-    $('move').textContent=moveState==='sending'?'送出中…':(kind==='swap'&&!choosing?'投入交換點數':actionNames[kind])+(choosing?' '+pair(slot):'')+' · '+cost+' 點';
+    $('move').textContent=moveState==='sending'?'送出中…':exchange?'確認交換 '+pair(slot):(kind==='swap'&&!choosing?'投入交換點數':actionNames[kind])+(choosing?' '+pair(slot):'')+' · '+cost+' 點';
     $('pair-hint').hidden=!choosing;
     pins.forEach((pin,i)=>{
       pin.disabled=!choosing||busy||expired;
@@ -139,6 +142,12 @@
       const auto=next.events.filter(e=>e.seq>prev.seq&&e.auto).at(-1);
       if(auto){moveFeedback=next.seats[auto.i]+(auto.bot?'（電腦託管）':' 逾時，系統')+eventText(auto);moveState='auto';}
     }
+    if(next.exchange&&next.exchange!==prev?.exchange){
+      $('pair').value=String(next.me);moveFeedback='可以交換：請選擇相鄰兩格。';moveState='';
+    }else if(prev?.exchange&&!next.exchange&&prev.matchId===next.matchId){
+      const last=next.notes.at(-1);
+      if(last?.kind==='swap'&&last.automatic){moveFeedback='時間到，已隨機完成交換 '+pair(last.slot)+'。';moveState='auto';}
+    }
     v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
     if(!same){clearTimeout(chamberTimer);$('chamber').hidden=true;}
@@ -179,7 +188,7 @@
     const clock=$('clock');$('countdown').hidden=clock.hidden=v?.phase!=='play'||!localDeadline;
     if(!clock.hidden){
       const remaining=Math.max(0,Math.ceil((localDeadline-Date.now())/1000));
-      clock.textContent=remaining?'剩餘 '+remaining+' 秒':'時間到 · 等候自動調查';
+      clock.textContent=remaining?'剩餘 '+remaining+' 秒':v.exchange?'時間到 · 等候自動交換':'時間到 · 等候自動調查';
       clock.className=remaining<=5?'urgent':'';
       $('dock-clock').textContent=remaining?remaining+' 秒':'時間到';
       $('dock-clock').className=clock.className;
@@ -267,6 +276,7 @@
   async function request(op,extra={}){
     if(busy||paused)return;
     busy=true;clearTimeout(timer);
+    if(op==='finish-swap'){moveState='sending';moveFeedback='交換送出中…';}
     if(op==='move'){moveState='sending';moveFeedback='出招送出中…';pendingMove=extra;}
     else if(op!=='state')say('連線中…');
     render();
@@ -285,7 +295,10 @@
         connection='已回到原座位。'+(missed.length?' 離線期間 '+missed.length+' 次逾時行動已補到公開紀錄。':'');
         recovering=false;resumeSeq=null;
       }
-      if(op==='move'){moveState='sent';moveFeedback='行動已完成：'+actionNames[extra.kind];pendingMove=null;}
+      if(op==='move'){
+        moveState='sent';moveFeedback=v.exchange?'可以交換：請選擇相鄰兩格。':extra.kind==='swap'?'點數已投入，本回合結束。':'行動已完成：'+actionNames[extra.kind];pendingMove=null;
+      }
+      if(op==='finish-swap'){moveState='sent';moveFeedback='已完成秘密交換 '+pair(extra.slot)+'。';}
       if(op==='state'&&pendingMove&&v&&v.seq>pendingMove.seq){
         const actual=v.events.find(e=>e.seq===pendingMove.seq+1);
         if(actual&&!actual.auto&&actual.i===v.me){moveState='sent';moveFeedback='已從房間確認你的行動完成。';}
@@ -297,7 +310,7 @@
       if(session&&(e.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)){
         beginReconnect();
       }
-      if(op==='move'){
+      if(op==='move'||op==='finish-swap'){
         const uncertain=e.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError;
         moveState='error';moveFeedback=uncertain?'尚未確認出招結果，等候房間同步。':e.message;
         if(!uncertain)pendingMove=null;
@@ -319,7 +332,12 @@
   $('ready').onclick=()=>{if(v)request('ready',{ready:!v.ready?.[v.me]});};
   $('reclaim').onclick=()=>request('reclaim');
   $('kind').onchange=$('amount').onchange=$('pair').onchange=selection;
-  $('move').onclick=()=>{if(v&&v.turn===v.me&&!$('move').disabled)request('move',{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot:Number($('pair').value)});};
+  $('move').onclick=()=>{
+    if(!v||v.turn!==v.me||$('move').disabled)return;
+    const slot=Number($('pair').value);
+    if(v.exchange)request('finish-swap',{exchange:v.exchange,slot});
+    else request('move',{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot});
+  };
   $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(v.code);say('已複製房間代碼。');}catch{say('房間代碼：'+v.code);}};
   let resumeSeq=null;
   function beginReconnect(){
