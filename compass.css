@@ -79,3 +79,6 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 #control-notices{padding-left:20px;color:var(--gold);font-size:.85rem}#reclaim{border-color:#d5a865;color:#ffd693}
 #entry #practice{margin-bottom:8px}#ask-wrap:not([hidden]){display:flex;gap:8px;align-items:end;margin-top:10px}#ask-wrap label{margin:0;flex:1}#ai-debrief{padding-left:22px;color:var(--muted);overflow-wrap:anywhere}
 #exchange-hint{grid-column:1/-1;color:var(--gold);margin:4px 0;font-size:.85rem}
+.check-row{display:flex;align-items:center;gap:8px}.check-row input{width:auto!important;min-height:0}.check-row input:focus-visible{outline-offset:4px}
+#match-setup,#series-board{border:1px solid #795f42;border-radius:10px;padding:8px 12px;margin:8px 0}#series-board h3{margin:0}#series-scores{padding-left:24px}
+#dial-clues{position:absolute;inset:0;pointer-events:none;z-index:2}.dial-clue{position:absolute;transform:translate(-50%,-50%);background:#18151a;color:#ffd693;border-radius:6px;padding:2px 3px;font-size:clamp(8px,2vw,11px);max-width:62px;line-height:1.15;overflow-wrap:anywhere}#clue-legend{font-size:.8rem}

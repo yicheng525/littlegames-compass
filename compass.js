@@ -18,12 +18,12 @@
   let guessScope='',guesses=Array(6).fill(0),connection='',recovering=!!session;
   const guessButtons=Array.from(letters,(letter,i)=>{
     const button=document.createElement('button');button.type='button';
-    button.onclick=()=>{guesses[i]=(guesses[i]+1)%3;writeGuesses();drawGuesses();};
+    button.onclick=()=>{guesses[i]=(guesses[i]+1)%3;writeGuesses();drawGuesses();drawClues();};
     $('guess-grid').append(button);return button;
   });
   function writeGuesses(){try{if(guessScope)localStorage.setItem(key+':guess:'+guessScope,JSON.stringify(guesses));}catch{}}
   function drawGuesses(){guessButtons.forEach((b,i)=>{b.textContent=letters[i]+' · '+guessLabels[guesses[i]];b.dataset.guess=guesses[i];});}
-  $('clear-guesses').onclick=()=>{guesses=Array(6).fill(0);writeGuesses();drawGuesses();};
+  $('clear-guesses').onclick=()=>{guesses=Array(6).fill(0);writeGuesses();drawGuesses();drawClues();};
   function loadGuesses(next,prev){
     const scope=JSON.stringify([next.code,next.matchId,next.me,next.seats]);
     const restart=next.phase==='play'&&prev?.code===next.code&&(prev.phase==='done'||(prev.phase==='play'&&next.seq<prev.seq));
@@ -161,6 +161,33 @@
       revealTimer=setTimeout(revealNext,1120);
     }
   }
+  function drawClues(){
+    const show=!!v?.hints&&v.phase==='play';
+    $('clue-legend').hidden=!show;
+    const holder=$('dial-clues');
+    if(!show){holder.replaceChildren();return;}
+    const known=Array(6).fill(null);
+    const notes=new Map(v.notes.map(n=>[n.seq,n]));
+    for(const e of v.events){
+      const own=notes.get(e.seq);
+      if(e.kind==='open'||own?.kind==='private'){
+        const check=e.kind==='open'?e:own;
+        check.marks.forEach((value,j)=>{known[(check.slot+j)%6]={value,old:false};});
+      }else if(e.kind==='rotate1'||e.kind==='rotate2'){
+        const n=e.kind==='rotate1'?1:2;known.unshift(...known.splice(-n));
+      }else if(own?.kind==='swap'){
+        const j=(own.slot+1)%6;[known[j],known[own.slot]]=[known[own.slot],known[j]];
+      }else if(e.kind==='hidden'&&e.i!==v.me){
+        for(const clue of known)if(clue)clue.old=true;
+      }
+    }
+    holder.replaceChildren(...Array.from(letters,(letter,i)=>{
+      const tag=document.createElement('span'),a=i*Math.PI/3,clue=known[i];
+      tag.style.left=(50+23*Math.sin(a))+'%';tag.style.top=(50-23*Math.cos(a))+'%';
+      tag.textContent=[clue?(clue.old?'舊 ':'')+(clue.value?'有彈':'空膛'):'',guesses[i]?'猜 '+(guesses[i]===1?'有彈':'安全'):''].filter(Boolean).join(' / ');
+      tag.className='dial-clue';tag.hidden=!tag.textContent;return tag;
+    }));
+  }
   function drawDial(playing,done){
     const unveiling=done&&reveal>=0;
     $('arena').hidden=!playing&&!done;
@@ -206,7 +233,7 @@
     showChat();
     const playing=v.phase==='play',done=v.phase==='done';
     const unveiling=done&&reveal>=0;
-    drawDial(playing,done);
+    drawDial(playing,done);drawClues();
     $('room-code').textContent=v.code;
     $('move-feedback').hidden=!moveFeedback;
     $('move-feedback').textContent=moveFeedback;
@@ -230,7 +257,18 @@
     }
     $('ask-ai').disabled=busy;
     items('ai-debrief',done&&!unveiling&&v.aiDebrief?.length?v.aiDebrief.map(m=>'第 '+m.round+' 輪 · '+m.name+' 刻意誤導：「'+m.message+'」 · '+(m.evidence||'無法驗證')):['本局沒有記錄到 AI 刻意誤導。']);
-    const canManageAI=v.host&&!playing&&!unveiling;
+    const inSeries=!!v.series&&v.series.completed<3;
+    const canManageAI=v.host&&!playing&&!unveiling&&!inSeries;
+    $('match-setup').hidden=!canManageAI||v.practice;
+    $('match-mode').hidden=!(playing||done)||unveiling;
+    $('match-mode').textContent='羅盤線索：'+(v.hints?'開啟':'關閉');
+    $('series-board').hidden=!v.series||unveiling;
+    if(v.series&&!unveiling){
+      const {completed,total,standings}=v.series;
+      const visible=completed===total;
+      $('series-title').textContent=visible?'三局積分賽 · 最終排名':'三局積分賽 · '+(playing?'第 '+(completed+1)+' 局':'已完成 '+completed+' / '+total+' 局');
+      items('series-scores',standings.map((r,i)=>{const rank=standings.findIndex(x=>x.points===r.points)+1;return (visible?'第 '+rank+' 名 · ':'')+r.name+' · '+r.points+' 分';}));
+    }
     $('fill-ai').hidden=!canManageAI||v.seats.length===6;
     $('fill-ai').disabled=busy;
     $('difficulty-wrap').hidden=!canManageAI;
@@ -250,7 +288,7 @@
     $('control-notices').hidden=!v.notices?.length||unveiling;
     items('control-notices',(v.notices||[]).slice(-4).map(n=>n.name+(n.kind==='managed'?' 已由電腦託管':' 已取回控制')));
     $('start').hidden=v.practice||!v.host||v.seats.length!==6||playing||unveiling;
-    $('start').textContent=done?'再開一局':'六人開局';
+    $('start').textContent=done&&inSeries?'開始下一局':done?'再開一局':'六人開局';
     $('leave').disabled=busy;
     $('start').disabled=busy||(v.readyRequired&&!allReady);
     $('leave').hidden=(playing&&!v.practice)||unveiling;
@@ -321,9 +359,9 @@
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
   function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true,difficulty:$('entry-difficulty').value}:{})});}
   for(let i=0;i<6;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=pair(i);$('pair').append(opt);}
-  $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start');$('leave').onclick=()=>{if(!v?.practice||v.phase!=='play'||window.confirm('退出這局單人練習？'))request('leave');};
-  $('retry').onclick=()=>request('retry');$('remix').onclick=()=>request('remix');
-  $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,readyRequired:true,difficulty:$('entry-difficulty').value});
+  $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start',v?.series&&v.series.completed<3?{}:{hints:$('match-hints').checked,series:$('match-series').checked});$('leave').onclick=()=>{if(!v?.practice||v.phase!=='play'||window.confirm('退出這局單人練習？'))request('leave');};
+  $('retry').onclick=()=>request('retry',{hints:v?.hints});$('remix').onclick=()=>request('remix',{hints:v?.hints});
+  $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,hints:$('practice-hints').checked,readyRequired:true,difficulty:$('entry-difficulty').value});
   $('fill-ai').onclick=()=>request('fill-ai');
   $('room-difficulty').onchange=()=>request('difficulty',{difficulty:$('room-difficulty').value});
   $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)request('chat',{message:'你查到什麼？',target:Number($('ask-target').value)});};
