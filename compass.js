@@ -14,6 +14,25 @@
   const actionNames={open:'公開調查',private:'私下調查',rotate1:'順轉一格',rotate2:'順轉兩格',swap:'秘密交換',hidden:'隱藏行動'};
   const eventRound=e=>Math.floor((e.seq-1)/6)+1;
   const marksText=e=>e.marks.map((value,i)=>letters[(e.slot+i)%6]+' '+mark(value)).join('、');
+  const guessLabels=['未知','猜測有子彈','猜測安全'];
+  let guessScope='',guesses=Array(6).fill(0),connection='',recovering=!!session;
+  const guessButtons=Array.from(letters,(letter,i)=>{
+    const button=document.createElement('button');button.type='button';
+    button.onclick=()=>{guesses[i]=(guesses[i]+1)%3;writeGuesses();drawGuesses();};
+    $('guess-grid').append(button);return button;
+  });
+  function writeGuesses(){try{if(guessScope)localStorage.setItem(key+':guess:'+guessScope,JSON.stringify(guesses));}catch{}}
+  function drawGuesses(){guessButtons.forEach((b,i)=>{b.textContent=letters[i]+' · '+guessLabels[guesses[i]];b.dataset.guess=guesses[i];});}
+  $('clear-guesses').onclick=()=>{guesses=Array(6).fill(0);writeGuesses();drawGuesses();};
+  function loadGuesses(next,prev){
+    const scope=JSON.stringify([next.code,next.me,next.seats]);
+    const restart=next.phase==='play'&&prev?.code===next.code&&(prev.phase==='done'||(prev.phase==='play'&&next.seq<prev.seq));
+    if(scope===guessScope&&!restart)return;
+    guessScope=scope;guesses=Array(6).fill(0);
+    if(restart)writeGuesses();
+    else try{const saved=JSON.parse(localStorage.getItem(key+':guess:'+scope));if(saved?.length===6&&saved.every(n=>Number.isInteger(n)&&n>=0&&n<=2))guesses=saved;}catch{}
+    drawGuesses();
+  }
   const eventText=e=>e.kind==='open'?'公開調查 '+marksText(e):(actionNames[e.kind]||'行動');
   let moveFeedback='',moveState='',pendingMove=null;
   function selection(){
@@ -113,7 +132,7 @@
       const auto=next.events.filter(e=>e.seq>prev.seq&&e.auto).at(-1);
       if(auto){moveFeedback=next.seats[auto.i]+' 逾時，系統'+eventText(auto);moveState='auto';}
     }
-    v=next;
+    v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
     if(!same){clearTimeout(chamberTimer);$('chamber').hidden=true;}
     if(same&&next.phase==='play'){
@@ -155,12 +174,15 @@
       const remaining=Math.max(0,Math.ceil((localDeadline-Date.now())/1000));
       clock.textContent=remaining?'剩餘 '+remaining+' 秒':'時間到 · 等候自動調查';
       clock.className=remaining<=5?'urgent':'';
+      $('dock-clock').textContent=remaining?remaining+' 秒':'時間到';
+      $('dock-clock').className=clock.className;
       $('clock-fill').style.transform='scaleX('+Math.min(1,Math.max(0,(localDeadline-Date.now())/30000))+')';
       if(!remaining){$('move').disabled=true;pins.forEach(pin=>{pin.disabled=true;});}
     }
   }
   setInterval(tickClock,250);
   function render(){
+    $('connection').hidden=!connection;$('connection').textContent=connection;
     $('entry').hidden=!!session;$('room').hidden=!v;
     for(const id of ['create','join'])$(id).disabled=busy;
     if(!v){chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
@@ -173,6 +195,8 @@
     $('move-feedback').textContent=moveFeedback;
     $('move-feedback').className=moveState;
     $('recap').hidden=!done||unveiling;
+    $('deduction').hidden=!playing;
+    if(done&&!unveiling)items('recap-events',v.events.slice(-6).map(e=>'第 '+eventRound(e)+' 輪 · '+v.seats[e.i]+(e.auto?' · 逾時自動 · ':' · ')+eventText(e)));
     const final=v.events.at(-1);
     $('finish-action').textContent=done&&final?'第 '+eventRound(final)+' 輪，'+v.seats[final.i]+(final.auto?'的逾時自動行動（':'完成「')+(final.auto?eventText(final)+'）':eventText(final)+'」')+'後，第三位玩家用完點數，觸發結算。':'';
     $('phase').textContent=done?(unveiling?'最後掃描':'對局結算'):playing?'第 '+v.round+' 輪':'等候玩家 '+v.seats.length+' / 6';
@@ -184,6 +208,7 @@
     $('start').disabled=$('leave').disabled=busy;
     $('leave').hidden=playing||unveiling;
     $('actions').hidden=!playing||v.turn!==v.me;
+    $('room').classList.toggle('your-turn',!$('actions').hidden);
     $('history').hidden=v.phase==='lobby';
     $('pool').textContent='交換累積 '+v.pool+' / 6';
     const clue=e=>{
@@ -210,11 +235,16 @@
       const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op,...session,...extra}),cache:'no-store',credentials:'omit',redirect:'error',signal:controller.signal});
       const result=await response.json();
       if(!response.ok){
-        if(op==='state'&&[403,404].includes(response.status)){save(null);v=null;}
+        if(op==='state'&&[403,404].includes(response.status)){save(null);v=null;recovering=false;connection='原座位已失效，請重新加入房間。';}
         throw new Error(result.error||'房間暫時無法使用。');
       }
       if(result.left){save(null);v=null;}
       else{if(result.token)save({code:result.view.code,token:result.token});acceptView(result.view);}
+      if(recovering&&v&&session){
+        const missed=v.events.filter(e=>e.auto&&e.seq>(resumeSeq??v.seq));
+        connection='已回到原座位。'+(missed.length?' 離線期間 '+missed.length+' 次逾時行動已補到公開紀錄。':'');
+        recovering=false;resumeSeq=null;
+      }
       if(op==='move'){moveState='sent';moveFeedback='行動已完成：'+actionNames[extra.kind];pendingMove=null;}
       if(op==='state'&&pendingMove&&v&&v.seq>pendingMove.seq){
         const actual=v.events.find(e=>e.seq===pendingMove.seq+1);
@@ -224,6 +254,9 @@
       if(op==='chat'&&$('chat-input').value.trim()===extra.message)$('chat-input').value='';
       if(op!=='state'||failures)say('');failures=0;
     }catch(e){
+      if(session&&(e.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)){
+        beginReconnect();
+      }
       if(op==='move'){
         const uncertain=e.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError;
         moveState='error';moveFeedback=uncertain?'尚未確認出招結果，等候房間同步。':e.message;
@@ -239,7 +272,22 @@
   $('kind').onchange=$('amount').onchange=$('pair').onchange=selection;
   $('move').onclick=()=>{if(v&&v.turn===v.me&&!$('move').disabled)request('move',{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot:Number($('pair').value)});};
   $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(v.code);say('已複製房間代碼。');}catch{say('房間代碼：'+v.code);}};
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&reveal>=0)finishReveal();schedule();});
+  let resumeSeq=null;
+  function beginReconnect(){
+    if(!session)return;
+    if(!recovering)resumeSeq=v?.seq??null;
+    recovering=true;connection='正在重新連線… 回合倒數不會暫停。';
+  }
+  window.addEventListener('offline',()=>{beginReconnect();render();});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&reveal>=0)finishReveal();
+    if(document.hidden&&session){
+      if(!recovering)resumeSeq=v?.seq??null;
+      recovering=true;
+    }
+    if(!document.hidden){if(recovering)beginReconnect();render();}
+    schedule();
+  });
   window.LittleGamesApp={pauseForBackground(){paused=true;clearTimeout(timer);},resumeFromBackground(){paused=false;schedule();},back(){location.href='index.html';return true;}};
   const invitation=(new URLSearchParams(location.search).get('room')||'').toUpperCase();
   if(/^[A-HJ-NP-Z2-9]{8}$/.test(invitation))$('code').value=invitation;
@@ -249,5 +297,6 @@
     try{await navigator.clipboard.writeText(url.href);say('已複製邀請連結。');}
     catch{say('邀請連結：'+url.href);}
   };
+  if(session)connection='正在恢復原座位… 回合倒數不會暫停。';
   render();if(session)request('state');
 })();

@@ -65,3 +65,14 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 #pair-hint{margin:.65em 0 0;font-size:.86rem}#move-feedback,#recap{border:1px solid #795f42;border-radius:10px;padding:9px 11px;background:#211a17;font-size:.9rem}
 #move-feedback.sent{border-color:#708d72;color:#cbebcd}#move-feedback.error,#move-feedback.auto{color:#ffc2a9}#recap h3{margin:0}#recap p{margin:.45em 0}#recap+.buttons{margin-top:8px}
 #dial-seats .dial-pin:not(:disabled){pointer-events:auto}
+
+#connection{background:#292422;border:1px solid #786145;color:#f2d6a9;border-radius:10px;padding:9px 12px}
+#dock-clock{font-variant-numeric:tabular-nums;color:var(--gold);font-weight:750}#dock-clock.urgent{color:#ffa498}
+#guess-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}#guess-grid button[data-guess="1"]{color:#ffc0ad;border-color:#a96351}#guess-grid button[data-guess="2"]{color:#c0edcc;border-color:#638a6b}
+#recap-events{padding-left:22px;color:var(--muted);line-height:1.65}
+@media(max-width:769px){
+ #room.your-turn{padding-bottom:280px}
+ #room>#actions{position:fixed;z-index:8;bottom:0;left:0;right:0;border-radius:15px 15px 0 0;padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 26px #0009;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:48dvh;overflow:auto}
+ #actions .top,#actions #move{grid-column:1/-1}
+ #actions label{min-width:0;margin:0;font-size:.75rem;gap:2px}#actions select{width:100%;font-size:.85rem}
+}
