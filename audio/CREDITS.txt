@@ -1,0 +1,15 @@
+Music — “Unease” by Kevin MacLeod (incompetech.com).
+Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100030
+Creative Commons Attribution 4.0: https://creativecommons.org/licenses/by/4.0/
+Recording unchanged; the game loops it and lowers playback volume.
+
+Sound effects — Brian MacIntosh (BMacZero), CC0:
+clipload1.wav, clipload2.wav, singlebullet1.wav
+https://opengameart.org/content/gun-reload-sound-effects
+rattle1.wav, lightclunk1.wav, clank1.wav
+https://opengameart.org/content/mechanical-sounds
+
+Dull explosion — Iwan Gabovitch (qubodup), CC0:
+explosion_dull.flac
+https://opengameart.org/content/dull-explosion
+CC0: https://creativecommons.org/publicdomain/zero/1.0/
