@@ -75,7 +75,7 @@
   function revealNext(){
     if(reduced.matches||document.hidden||reveal===5){finishReveal();return;}
     reveal++;render();
-    revealTimer=setTimeout(revealNext,reveal===5?900:460);
+    revealTimer=setTimeout(revealNext,reveal===5?1020:760);
   }
   $('skip-reveal').onclick=finishReveal;
   reduced.addEventListener?.('change',()=>{if(reduced.matches&&reveal>=0)finishReveal();});
@@ -99,7 +99,7 @@
     if(same&&next.phase==='done'&&!reduced.matches&&!document.hidden){
       clearTimeout(chamberTimer);$('chamber').hidden=true;
       reveal=0;
-      revealTimer=setTimeout(revealNext,950);
+      revealTimer=setTimeout(revealNext,1120);
     }
   }
   function drawDial(playing,done){
@@ -126,11 +126,12 @@
     $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(hit?'砰！擊發':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
   }
   function tickClock(){
-    const clock=$('clock');clock.hidden=v?.phase!=='play'||!localDeadline;
+    const clock=$('clock');$('countdown').hidden=clock.hidden=v?.phase!=='play'||!localDeadline;
     if(!clock.hidden){
       const remaining=Math.max(0,Math.ceil((localDeadline-Date.now())/1000));
       clock.textContent=remaining?'剩餘 '+remaining+' 秒':'時間到 · 等候自動調查';
       clock.className=remaining<=5?'urgent':'';
+      $('clock-fill').style.transform='scaleX('+Math.min(1,Math.max(0,(localDeadline-Date.now())/30000))+')';
       if(!remaining)$('move').disabled=true;
     }
   }
