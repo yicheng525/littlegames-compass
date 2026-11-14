@@ -13,7 +13,7 @@
   function save(s){session=s;try{if(s)localStorage.setItem(key,JSON.stringify(s));else localStorage.removeItem(key);}catch{}}
   const actionNames={open:'公開調查',private:'私下調查',rotate1:'順轉一格',rotate2:'順轉兩格',swap:'秘密交換',hidden:'行動結束'};
   const eventRound=e=>Math.floor((e.seq-1)/6)+1;
-  const marksText=e=>e.marks.map((value,i)=>letters[(e.slot+i)%6]+' '+mark(value)).join('、');
+  const marksText=e=>!e.marks?'（結果已隱藏）':e.marks.map((value,i)=>letters[(e.slot+i)%6]+' '+mark(value)).join('、');
   const guessLabels=['未知','猜測有子彈','猜測安全'];
   let guessScope='',guesses=Array(6).fill(0),connection='',recovering=!!session;
   const guessButtons=Array.from(letters,(letter,i)=>{
@@ -101,8 +101,9 @@
     group.append(title,buttons);$('quick-chat').append(group);
   }
   $('chat-form').onsubmit=e=>{e.preventDefault();sendChat($('chat-input').value);};
+  let liveClueKey='';
   function chamberPreview(event){
-    if(!event)return;
+    if(!event?.marks)return;
     clearTimeout(chamberTimer);
     $('chamber').hidden=false;
     $('chamber-title').textContent=event.kind==='private'?'私下調查 · 只有你看得到':'公開調查 · '+v.seats[event.i];
@@ -114,7 +115,7 @@
       port.textContent=label;port.className='port'+(k<2?(event.marks[k]?' live':' clear'):'');
       if(k<2)port.style.animationDelay=(k*150)+'ms';return port;
     }));
-    chamberTimer=setTimeout(()=>{$('chamber').hidden=true;},6500);
+    chamberTimer=setTimeout(()=>{$('chamber').hidden=true;},event.expires?Math.max(0,event.expires-v.serverNow):6500);
   }
   let angle=0,reveal=-1,revealTimer,rotating=false;
   function finishReveal(){
@@ -151,12 +152,16 @@
     v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
     if(!same){clearTimeout(chamberTimer);$('chamber').hidden=true;}
-    if(same&&next.phase==='play'){
+    if(next.memoryOnly){
+      const clue=next.liveClue,stamp=clue?next.matchId+':'+clue.seq:'';
+      if(clue&&stamp!==liveClueKey){liveClueKey=stamp;chamberPreview(clue);}
+      if(!clue){clearTimeout(chamberTimer);$('chamber').hidden=true;liveClueKey='';}
+    }else if(same&&next.phase==='play'){
       const checks=[...next.events.filter(e=>e.kind==='open'),...next.notes.filter(e=>e.kind==='private')].filter(e=>e.seq>prev.seq);
       chamberPreview(checks.sort((a,b)=>b.seq-a.seq)[0]);
     }
     if(same&&next.phase==='done'&&!reduced.matches&&!document.hidden){
-      clearTimeout(chamberTimer);$('chamber').hidden=true;
+      if(!next.memoryOnly){clearTimeout(chamberTimer);$('chamber').hidden=true;}
       reveal=0;
       revealTimer=setTimeout(revealNext,1120);
     }
@@ -239,7 +244,8 @@
     $('move-feedback').textContent=moveFeedback;
     $('move-feedback').className=moveState;
     $('recap').hidden=!done||unveiling;
-    $('deduction').hidden=!playing;
+    $('deduction').hidden=!playing||v.memoryOnly;
+    $('private-history').hidden=!!v.memoryOnly;
     if(done&&!unveiling)items('recap-events',v.events.slice(-6).map(e=>'第 '+eventRound(e)+' 輪 · '+v.seats[e.i]+actorTag(e)+eventText(e)));
     const final=v.events.at(-1);
     $('finish-action').textContent=done&&final?'第 '+eventRound(final)+' 輪，'+v.seats[final.i]+(final.auto?'的逾時自動行動（':final.kind==='hidden'?'':'完成「')+(final.auto?eventText(final)+'）':final.kind==='hidden'?'行動結束':eventText(final)+'」')+'後，第三位玩家用完點數，觸發結算。':'';
@@ -261,12 +267,20 @@
     const canManageAI=v.host&&!playing&&!unveiling&&!inSeries;
     $('match-setup').hidden=!canManageAI||v.practice;
     $('match-mode').hidden=!(playing||done)||unveiling;
-    $('match-mode').textContent='羅盤線索：'+(v.hints?'開啟':'關閉');
+    $('match-mode').textContent=v.memoryOnly?'無筆記挑戰 · 羅盤線索關閉':'羅盤線索：'+(v.hints?'開啟':'關閉');
     $('series-board').hidden=!v.series||unveiling;
     if(v.series&&!unveiling){
       const {completed,total,standings}=v.series;
       const visible=completed===total;
       $('series-title').textContent=visible?'三局積分賽 · 最終排名':'三局積分賽 · '+(playing?'第 '+(completed+1)+' 局':'已完成 '+completed+' / '+total+' 局');
+      const history=(v.series.history||[]);
+      $('series-history').hidden=!history.length;
+      items('series-history-list',history.map(g=>{
+        const lead=g.standings[0]?.points||0;
+        const leaders=g.standings.filter(p=>p.points===lead).map(p=>p.name);
+        const you=g.standings.find(p=>p.name===v.seats[v.me]);
+        return '第 '+g.game+' 局 · 存活得分：'+g.survivors.join('、')+'。局後領先：'+leaders.join('、')+'（'+lead+' 分）'+(you?'；你'+(lead===you.points?'並列領先':'落後 '+(lead-you.points)+' 分'):'')+'。當時排名：'+g.standings.map(p=>(g.standings.findIndex(x=>x.points===p.points)+1)+'｜'+p.name+' '+p.points+' 分').join('、');
+      }));
       items('series-scores',standings.map((r,i)=>{const rank=standings.findIndex(x=>x.points===r.points)+1;return (visible?'第 '+rank+' 名 · ':'')+r.name+' · '+r.points+' 分';}));
     }
     $('fill-ai').hidden=!canManageAI||v.seats.length===6;
@@ -301,6 +315,7 @@
       if(e.kind==='private'||e.kind==='open'){
         const later=v.events.filter(x=>x.seq>e.seq);
         const steps=later.reduce((n,x)=>n+(x.kind==='rotate1'?1:x.kind==='rotate2'?2:0),0);
+        if(!e.marks)return '結果已隱藏';
         const shifted=e.marks.map((value,i)=>letters[(e.slot+i+steps)%6]+' '+mark(value)).join('、');
         const shifts=steps?' · 依你知道的轉盤：'+shifted+'（仍可能受未知行動影響）':'';
         return marksText(e)+shifts+(later.some(x=>x.kind==='hidden')?' · 有隱藏行動，位置可能已變':'');
@@ -359,9 +374,12 @@
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
   function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true,difficulty:$('entry-difficulty').value}:{})});}
   for(let i=0;i<6;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=pair(i);$('pair').append(opt);}
-  $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start',v?.series&&v.series.completed<3?{}:{hints:$('match-hints').checked,series:$('match-series').checked});$('leave').onclick=()=>{if(!v?.practice||v.phase!=='play'||window.confirm('退出這局單人練習？'))request('leave');};
-  $('retry').onclick=()=>request('retry',{hints:v?.hints});$('remix').onclick=()=>request('remix',{hints:v?.hints});
-  $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,hints:$('practice-hints').checked,readyRequired:true,difficulty:$('entry-difficulty').value});
+  for(const [memory,hints] of [['match-memory','match-hints'],['practice-memory','practice-hints']]){
+    $(memory).onchange=()=>{$(hints).disabled=$(memory).checked;if($(memory).checked)$(hints).checked=false;};
+  }
+  $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start',v?.series&&v.series.completed<3?{}:{hints:$('match-hints').checked,memoryOnly:$('match-memory').checked,series:$('match-series').checked});$('leave').onclick=()=>{if(!v?.practice||v.phase!=='play'||window.confirm('退出這局單人練習？'))request('leave');};
+  $('retry').onclick=()=>request('retry',{hints:v?.hints,memoryOnly:v?.memoryOnly});$('remix').onclick=()=>request('remix',{hints:v?.hints,memoryOnly:v?.memoryOnly});
+  $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,hints:$('practice-hints').checked,memoryOnly:$('practice-memory').checked,readyRequired:true,difficulty:$('entry-difficulty').value});
   $('fill-ai').onclick=()=>request('fill-ai');
   $('room-difficulty').onchange=()=>request('difficulty',{difficulty:$('room-difficulty').value});
   $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)request('chat',{message:'你查到什麼？',target:Number($('ask-target').value)});};
