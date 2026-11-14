@@ -88,10 +88,17 @@
     }
     $('chat-send').disabled=false;
   }
-  function sendChat(message){
-    const clean=message.trim();if(!clean)return;
-    if(busy){chatDraft={message:clean};return;}
-    request('chat',{message:clean});
+  function chatStatus(text){
+    const el=$('chat-status');el.textContent=text;el.hidden=!text;
+  }
+  function sendChat(message,{typed=false,target}={}){
+    const clean=message.trim();if(!clean||!session||paused)return;
+    const body={message:clean,...(target===undefined?{}:{target})};
+    if(busy){
+      if(chatDraft){chatStatus('上一則訊息還在等候送出。');return;}
+      chatDraft={body,typed};chatStatus('等候送出…');return;
+    }
+    request('chat',body,typed);
   }
   for(const [category,choices] of Object.entries(phrases)){
     const group=document.createElement('details'),title=document.createElement('summary'),buttons=document.createElement('div');
@@ -102,7 +109,7 @@
     }
     group.append(title,buttons);$('quick-chat').append(group);
   }
-  $('chat-form').onsubmit=e=>{e.preventDefault();sendChat($('chat-input').value);};
+  $('chat-form').onsubmit=e=>{e.preventDefault();sendChat($('chat-input').value,{typed:true});};
   let liveClueKey='';
   function chamberPreview(event){
     if(!event?.marks)return;
@@ -237,7 +244,7 @@
     $('entry').hidden=!!session;$('room').hidden=!v;
     for(const id of ['create','join'])$(id).disabled=busy;
     $('practice').disabled=busy;
-    if(!v){chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
+    if(!v){chatStatus('');chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
     showChat();
     const playing=v.phase==='play',done=v.phase==='done';
     const unveiling=done&&reveal>=0;
@@ -262,7 +269,7 @@
     items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
     const allReady=v.ready?.length===6&&v.ready.every(Boolean);
     const targets=playing?v.seats.map((name,i)=>v.ai?.[i]?[i,name]:null).filter(Boolean):[];
-    $('ask-wrap').hidden=!targets.length;
+    $('ask-details').hidden=$('ask-wrap').hidden=!targets.length;
     const targetList=$('ask-target'), signature=JSON.stringify(targets);
     if(targetList.dataset.list!==signature){
       targetList.dataset.list=signature;
@@ -332,11 +339,12 @@
     items('events',v.events.length?v.events.slice(-12).reverse().map(e=>'第 '+eventRound(e)+' 輪 · #'+e.seq+' '+v.seats[e.i]+actorTag(e)+(e.kind==='open'?'系統確認 · 公開調查 '+clue(e):eventText(e))):['等待第一個行動。']);
     selection();tickClock();
   }
-  async function request(op,extra={}){
+  async function request(op,extra={},typed=false){
     if(busy||paused)return;
     busy=true;inFlight=op;clearTimeout(timer);
     if(op==='finish-swap'){moveState='sending';moveFeedback='交換送出中…';}
     if(op==='move'){moveState='sending';moveFeedback='出招送出中…';pendingMove=extra;}
+    else if(op==='chat')chatStatus('送出中…');
     else if(op!=='state')say('連線中…');
     render();
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
@@ -363,9 +371,13 @@
         if(actual&&!actual.auto&&actual.i===v.me){moveState='sent';moveFeedback='已從房間確認你的行動完成。';}
         pendingMove=null;
       }
-      if(op==='chat'&&$('chat-input').value.trim()===extra.message)$('chat-input').value='';
+      if(op==='chat'){
+        if(typed&&$('chat-input').value.trim()===extra.message)$('chat-input').value='';
+        chatStatus('已送出');
+      }
       if(op!=='state'||failures)say('');failures=0;
     }catch(e){
+      if(op==='chat')chatStatus(e.name==='AbortError'||e instanceof TypeError?'尚未確認是否送達，請先看聊天紀錄。':e.message);
       if(session&&(e.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)){
         beginReconnect();
       }
@@ -378,7 +390,7 @@
     finally{clearTimeout(timeout);busy=false;inFlight=null;
       const queued=queuedMove;queuedMove=null;render();
       if(queued&&v?.phase==='play'&&v.turn===v.me&&v.matchId===queued.match&&v.seq===queued.seq&&(!localDeadline||Date.now()<localDeadline)&&v.exchange===queued.exchange){request(queued.op,queued.body);}
-      else if(chatDraft&&session&&!paused){const {message}=chatDraft;chatDraft=null;sendChat(message);}else schedule();}
+      else if(chatDraft&&session&&!paused){const {body,typed}=chatDraft;chatDraft=null;request('chat',body,typed);}else schedule();}
   }
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
   function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true,difficulty:$('entry-difficulty').value}:{})});}
@@ -391,7 +403,7 @@
   $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,hints:$('practice-hints').checked,memoryOnly:$('practice-memory').checked,readyRequired:true,difficulty:$('entry-difficulty').value});
   $('fill-ai').onclick=()=>request('fill-ai');
   $('room-difficulty').onchange=()=>request('difficulty',{difficulty:$('room-difficulty').value});
-  $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)request('chat',{message:'你查到什麼？',target:Number($('ask-target').value)});};
+  $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)sendChat('你查到什麼？',{target:Number($('ask-target').value)});};
   $('add-ai').onclick=()=>request('add-ai');
   $('remove-ai').onclick=()=>{if(v?.ai?.includes(true))request('remove-ai',{seat:v.ai.lastIndexOf(true)});};
   $('ready').onclick=()=>{if(v)request('ready',{ready:!v.ready?.[v.me]});};
