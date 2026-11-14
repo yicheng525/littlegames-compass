@@ -109,3 +109,5 @@ html.reveal-lock,html.reveal-lock body{overflow:hidden;overscroll-behavior:none}
 #game-info[data-in-room="true"]>summary[hidden]{display:list-item!important}
 #audio-controls{display:flex;justify-content:flex-end;gap:6px;margin:4px 0 7px}#audio-controls button{min-height:34px;font-size:.76rem;padding:3px 8px}#audio-controls button[aria-pressed="true"]{color:var(--gold)}
 #audio-controls{align-items:center;flex-wrap:wrap}#audio-controls a{color:var(--muted);font-size:.72rem}
+
+@media(prefers-reduced-motion:no-preference){#arena.revealing #sweep{transition:transform 1.05s cubic-bezier(.28,.64,.25,1)}}

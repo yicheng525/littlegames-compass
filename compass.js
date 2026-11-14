@@ -143,8 +143,8 @@
     revealTimer=setTimeout(()=>{
       if(reduced.matches||document.hidden){finishReveal();return;}
       revealReady=true;render();
-      revealTimer=setTimeout(()=>seat===5?finishReveal():aimAt(seat+1),seat===5?1040:525);
-    },360);
+      revealTimer=setTimeout(()=>seat===5?finishReveal():aimAt(seat+1),seat===5?1350:790);
+    },seat===0?550:1130);
   }
   $('skip-reveal').onclick=finishReveal;
   reduced.addEventListener?.('change',()=>{if(reduced.matches&&reveal>=0)finishReveal();});
