@@ -257,6 +257,14 @@
   setInterval(tickClock,250);
   function render(){
     $('connection').hidden=!connection;$('connection').textContent=connection;
+    const info=$('game-info'), inRoom=!!v;
+    if(info.dataset.inRoom!==String(inRoom)){
+      info.dataset.inRoom=String(inRoom);
+      info.open=!inRoom;
+      $('game-rules').open=!inRoom;
+      $('rules-summary').hidden=!inRoom;
+      $('home-rules-title').hidden=inRoom;
+    }
     $('room-info').hidden=!v;
     $('entry').hidden=!!session;$('room').hidden=!v;
     for(const id of ['create','join'])$(id).disabled=busy;
