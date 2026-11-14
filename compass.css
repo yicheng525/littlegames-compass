@@ -83,3 +83,14 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 #match-setup,#series-board{border:1px solid #795f42;border-radius:10px;padding:8px 12px;margin:8px 0}#series-board h3{margin:0}#series-scores{padding-left:24px}
 #dial-clues{position:absolute;inset:0;pointer-events:none;z-index:2}.dial-clue{position:absolute;transform:translate(-50%,-50%);background:#18151a;color:#ffd693;border-radius:6px;padding:2px 3px;font-size:clamp(8px,2vw,11px);max-width:62px;line-height:1.15;overflow-wrap:anywhere}#clue-legend{font-size:.8rem}
 #series-history{margin-top:8px}#series-history-list{padding-left:22px;color:var(--muted);line-height:1.6}#series-history-list li+li{margin-top:.5rem}
+/* Keep the cylinder, current event and compact conversation together. */
+#dial{background:radial-gradient(circle,#a08661 0 4%,#282326 5% 8%,#afa08d 9%,#5c5148 39%,#988371 62%,#443b36 71%);border:4px double #b3a18b}
+#rotor{background:repeating-conic-gradient(from -30deg,#c4ad7b35 0 2deg,#1e1b2155 2deg 60deg)}
+.dial-pin{width:23%;aspect-ratio:1;height:auto;background:#0c0d11;box-shadow:inset 0 4px 12px #000;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:2px;white-space:normal;font-size:clamp(9px,2.6vw,13px)}
+.dial-pin::after{content:attr(data-name);display:block;max-width:95%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85em;color:#ebddcc}
+.dial-pin.checked-live{background:radial-gradient(circle,#8b592a,#291a17);border-color:#ffc675}.dial-pin.checked-clear{border-color:#9cd2ce;background:#183033}
+#board-event,#chamber{font-size:.78rem;margin:4px 0}#chamber p{margin:2px 0}#chat{margin:8px 0;padding:9px}
+#chat-log{max-height:112px;min-height:42px;font-size:.77rem;margin:4px 0}#chat-log li{padding:3px 6px;margin:2px 0}#chat h2{font-size:.89rem}#chat-form input,#chat-form button{font-size:.85rem;min-height:38px}
+#ask-wrap{font-size:.8rem}#history summary{font-weight:700}
+@media(max-width:769px){#room.in-play .room-bar{display:none}#room.in-play #arena{margin:6px auto}#room.in-play #dial{width:min(100%,250px,36dvh)}#room.in-play #dial-caption{margin:3px 0}#room.in-play .board-card{padding:9px}#room.in-play #countdown p,#room.in-play #turn{margin:3px 0}#room.in-play #ask-wrap{margin-top:4px}#room.in-play #pair-hint{display:none}}
+@media(max-width:769px){body:has(#room.in-play) header{margin:0 0 6px}body:has(#room.in-play) header h1{font-size:22px}body:has(#room.in-play) header .tagline{display:none}body:has(#room.in-play) header .compass-icon{width:34px;font-size:1.2rem}body:has(#room.in-play) header+details.panel{padding:6px 10px;margin-bottom:5px}}

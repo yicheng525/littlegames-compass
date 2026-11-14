@@ -2,6 +2,7 @@
   'use strict';
   const endpoint='https://little-games-compass-rooms.ciclol.chatgpt.site/v1/room';
   const $=id=>document.getElementById(id),key='little-games-compass-web-v1:'+location.pathname,letters='ABCDEF';
+  let inFlight=null,queuedMove=null,inspection=null;
   let session=null,v=null,busy=false,paused=false,timer=null,failures=0;
   try{const s=JSON.parse(localStorage.getItem(key));if(s&&typeof s.code==='string'&&typeof s.token==='string')session=s;}catch{}
   const say=s=>$('status').textContent=s;
@@ -53,11 +54,12 @@
     for(const option of Array.from($('amount').options||[]))option.disabled=!!v&&Number(option.value)>v.points;
     $('pool').textContent=!exchange&&myTurn&&cost===v.points?'這步會用完點數':!exchange&&myTurn&&v.points<=2?'點數不足的行動已停用':'';
     const expired=localDeadline&&Date.now()>=localDeadline;
-    $('move').disabled=busy||!myTurn||cost>v.points||expired;
-    $('move').textContent=moveState==='sending'?'送出中…':exchange?'確認交換 '+pair(slot):(kind==='swap'&&!choosing?'投入交換點數':actionNames[kind])+(choosing?' '+pair(slot):'')+' · '+cost+' 點';
+    const actionLocked=(busy&&inFlight!=='state')||!!queuedMove;
+    $('move').disabled=actionLocked||!myTurn||cost>v.points||expired;
+    $('move').textContent=queuedMove?'等候送出…':moveState==='sending'?'送出中…':exchange?'確認交換 '+pair(slot):(kind==='swap'&&!choosing?'投入交換點數':actionNames[kind])+(choosing?' '+pair(slot):'')+' · '+cost+' 點';
     $('pair-hint').hidden=!choosing;
     pins.forEach((pin,i)=>{
-      pin.disabled=!choosing||busy||expired;
+      pin.disabled=!choosing||actionLocked||expired;
       const selected=choosing&&(i===slot||i===(slot+1)%6);
       pin.classList.toggle('selected',selected);
       pin.setAttribute('aria-label',choosing?'選擇 '+pair(i):pin.textContent);
@@ -108,14 +110,8 @@
     $('chamber').hidden=false;
     $('chamber-title').textContent=event.kind==='private'?'私下調查 · 只有你看得到':'公開調查 · '+v.seats[event.i];
     $('chamber-info').textContent=pair(event.slot)+'：'+event.marks.map(mark).join('、');
-    const drum=$('chamber-drum');
-    drum.replaceChildren(...Array.from(letters,(label,i)=>{
-      const port=document.createElement('span'),a=i*Math.PI/3,k=(i-event.slot+6)%6;
-      port.style.left=(50+33*Math.sin(a))+'%';port.style.top=(50-33*Math.cos(a))+'%';
-      port.textContent=label;port.className='port'+(k<2?(event.marks[k]?' live':' clear'):'');
-      if(k<2)port.style.animationDelay=(k*150)+'ms';return port;
-    }));
-    chamberTimer=setTimeout(()=>{$('chamber').hidden=true;},event.expires?Math.max(0,event.expires-v.serverNow):6500);
+    inspection=event;
+    chamberTimer=setTimeout(()=>{inspection=null;$('chamber').hidden=true;if(v)drawDial(v.phase==='play',v.phase==='done');},event.expires?Math.max(0,event.expires-v.serverNow):6500);
   }
   let angle=0,reveal=-1,revealTimer,rotating=false;
   function finishReveal(){
@@ -151,17 +147,17 @@
     }
     v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
-    if(!same){clearTimeout(chamberTimer);$('chamber').hidden=true;}
+    if(!same){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;}
     if(next.memoryOnly){
       const clue=next.liveClue,stamp=clue?next.matchId+':'+clue.seq:'';
       if(clue&&stamp!==liveClueKey){liveClueKey=stamp;chamberPreview(clue);}
-      if(!clue){clearTimeout(chamberTimer);$('chamber').hidden=true;liveClueKey='';}
+      if(!clue){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;liveClueKey='';}
     }else if(same&&next.phase==='play'){
       const checks=[...next.events.filter(e=>e.kind==='open'),...next.notes.filter(e=>e.kind==='private')].filter(e=>e.seq>prev.seq);
       chamberPreview(checks.sort((a,b)=>b.seq-a.seq)[0]);
     }
     if(same&&next.phase==='done'&&!reduced.matches&&!document.hidden){
-      if(!next.memoryOnly){clearTimeout(chamberTimer);$('chamber').hidden=true;}
+      if(!next.memoryOnly){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;}
       reveal=0;
       revealTimer=setTimeout(revealNext,1120);
     }
@@ -212,7 +208,14 @@
     for(let i=0;i<6;i++){
       const shown=done&&(!unveiling||i<=reveal);
       pins[i].className='dial-pin'+(unveiling&&i===reveal?' scan':'')+(shown?(v.result[i].marked?' hit':' safe'):playing&&v.turn===i?' scan':'');
-      pins[i].textContent=letters[i]+(shown?(v.result[i].marked?' ×':' ✓'):'');
+      const offset=(i-(inspection?.slot??i)+6)%6;
+      const inspected=!!inspection&&offset<2;
+      pins[i].classList.toggle('checked-live',inspected&&inspection.marks[offset]);
+      pins[i].classList.toggle('checked-clear',inspected&&!inspection.marks[offset]);
+      const name=v.seats[i]||'';
+      const status=shown?(v.result[i].marked?' ×':' ✓'):inspected?(inspection.marks[offset]?' · 有彈':' · 空膛'):'';
+      pins[i].textContent=letters[i]+status;
+      pins[i].dataset.name=name+(v.ai?.[i]?' · AI':i===v.me?' · 你':v.managed?.[i]?' · 託管':'');
     }
     $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(hit?'砰！擊發':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
   }
@@ -224,7 +227,7 @@
       clock.className=remaining<=5?'urgent':'';
       $('dock-clock').textContent=remaining?remaining+' 秒':'時間到';
       $('dock-clock').className=clock.className;
-      $('clock-fill').style.transform='scaleX('+Math.min(1,Math.max(0,(localDeadline-Date.now())/30000))+')';
+      $('clock-fill').style.transform='scaleX('+Math.min(1,Math.max(0,(localDeadline-Date.now())/(v.turnDuration||60000)))+')';
       if(!remaining){$('move').disabled=true;pins.forEach(pin=>{pin.disabled=true;});}
     }
   }
@@ -239,6 +242,10 @@
     const playing=v.phase==='play',done=v.phase==='done';
     const unveiling=done&&reveal>=0;
     drawDial(playing,done);drawClues();
+    $('room').classList.toggle('in-play',playing);
+    $('seats').hidden=playing;
+    const news=v.events.at(-1);
+    $('board-event').textContent=playing&&news?v.seats[news.i]+actorTag(news)+eventText(news):'';
     $('room-code').textContent=v.code;
     $('move-feedback').hidden=!moveFeedback;
     $('move-feedback').textContent=moveFeedback;
@@ -252,7 +259,7 @@
     $('phase').textContent=done?(unveiling?'最後掃描':'對局結算'):playing?'第 '+v.round+' 輪':'等候玩家 '+v.seats.length+' / 6';
     $('points').textContent=playing?'你的點數 '+v.points:'';
     $('turn').textContent=done?(unveiling?'按座位順序揭曉結果…':v.result[v.me].marked?'你的座位被擊發，本局淘汰。':'你成功留下，獲得 1 枚籌碼！'):playing?(v.managed?.[v.turn]?'電腦託管中：'+v.seats[v.turn]:v.turn===v.me?'輪到你選擇行動':'等候 '+v.seats[v.turn]+' 行動'):v.readyRequired?'六人到齊且都準備好後，由房主開始。':'六人到齊後，由房主開始。';
-    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI・'+(v.personas?.[i]||'對手')+'）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
+    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
     const allReady=v.ready?.length===6&&v.ready.every(Boolean);
     const targets=playing?v.seats.map((name,i)=>v.ai?.[i]?[i,name]:null).filter(Boolean):[];
     $('ask-wrap').hidden=!targets.length;
@@ -288,7 +295,6 @@
     $('difficulty-wrap').hidden=!canManageAI;
     $('room-difficulty').value=v.difficulty||'hard';
     $('room-difficulty').disabled=busy;
-    $('persona-wrap').hidden=!canManageAI||v.seats.length===6;
     $('retry').hidden=$('remix').hidden=!v.practice||!done||unveiling;
     $('retry').disabled=$('remix').disabled=busy;
     $('add-ai').hidden=!canManageAI||v.seats.length===6;
@@ -328,7 +334,7 @@
   }
   async function request(op,extra={}){
     if(busy||paused)return;
-    busy=true;clearTimeout(timer);
+    busy=true;inFlight=op;clearTimeout(timer);
     if(op==='finish-swap'){moveState='sending';moveFeedback='交換送出中…';}
     if(op==='move'){moveState='sending';moveFeedback='出招送出中…';pendingMove=extra;}
     else if(op!=='state')say('連線中…');
@@ -369,7 +375,10 @@
         if(!uncertain)pendingMove=null;
       }
       failures=Math.min(4,failures+1);say(e.name==='AbortError'||e instanceof TypeError?'連不上房間，請確認網路；有座位時會自動重連。':e.message);}
-    finally{clearTimeout(timeout);busy=false;render();if(chatDraft&&session&&!paused){const {message}=chatDraft;chatDraft=null;sendChat(message);}else schedule();}
+    finally{clearTimeout(timeout);busy=false;inFlight=null;
+      const queued=queuedMove;queuedMove=null;render();
+      if(queued&&v?.phase==='play'&&v.turn===v.me&&v.matchId===queued.match&&v.seq===queued.seq&&(!localDeadline||Date.now()<localDeadline)&&v.exchange===queued.exchange){request(queued.op,queued.body);}
+      else if(chatDraft&&session&&!paused){const {message}=chatDraft;chatDraft=null;sendChat(message);}else schedule();}
   }
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
   function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true,difficulty:$('entry-difficulty').value}:{})});}
@@ -383,7 +392,7 @@
   $('fill-ai').onclick=()=>request('fill-ai');
   $('room-difficulty').onchange=()=>request('difficulty',{difficulty:$('room-difficulty').value});
   $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)request('chat',{message:'你查到什麼？',target:Number($('ask-target').value)});};
-  $('add-ai').onclick=()=>request('add-ai',$('persona').value?{persona:$('persona').value}:{});
+  $('add-ai').onclick=()=>request('add-ai');
   $('remove-ai').onclick=()=>{if(v?.ai?.includes(true))request('remove-ai',{seat:v.ai.lastIndexOf(true)});};
   $('ready').onclick=()=>{if(v)request('ready',{ready:!v.ready?.[v.me]});};
   $('reclaim').onclick=()=>request('reclaim');
@@ -391,8 +400,10 @@
   $('move').onclick=()=>{
     if(!v||v.turn!==v.me||$('move').disabled)return;
     const slot=Number($('pair').value);
-    if(v.exchange)request('finish-swap',{exchange:v.exchange,slot});
-    else request('move',{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot});
+    const op=v.exchange?'finish-swap':'move';
+    const body=v.exchange?{exchange:v.exchange,slot}:{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot};
+    if(inFlight==='state'){queuedMove={op,body,match:v.matchId,seq:v.seq,exchange:v.exchange};selection();}
+    else request(op,body);
   };
   $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(v.code);say('已複製房間代碼。');}catch{say('房間代碼：'+v.code);}};
   let resumeSeq=null;
