@@ -77,3 +77,4 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
  #actions label{min-width:0;margin:0;font-size:.75rem;gap:2px}#actions select{width:100%;font-size:.85rem}
 }
 #control-notices{padding-left:20px;color:var(--gold);font-size:.85rem}#reclaim{border-color:#d5a865;color:#ffd693}
+#entry #practice{margin-bottom:8px}#ask-wrap:not([hidden]){display:flex;gap:8px;align-items:end;margin-top:10px}#ask-wrap label{margin:0;flex:1}#ai-debrief{padding-left:22px;color:var(--muted);overflow-wrap:anywhere}

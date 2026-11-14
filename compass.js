@@ -186,6 +186,7 @@
     $('connection').hidden=!connection;$('connection').textContent=connection;
     $('entry').hidden=!!session;$('room').hidden=!v;
     for(const id of ['create','join'])$(id).disabled=busy;
+    $('practice').disabled=busy;
     if(!v){chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
     showChat();
     const playing=v.phase==='play',done=v.phase==='done';
@@ -203,9 +204,23 @@
     $('phase').textContent=done?(unveiling?'最後掃描':'對局結算'):playing?'第 '+v.round+' 輪':'等候玩家 '+v.seats.length+' / 6';
     $('points').textContent=playing?'你的點數 '+v.points:'';
     $('turn').textContent=done?(unveiling?'按座位順序揭曉結果…':v.result[v.me].marked?'你的座位被擊發，本局淘汰。':'你成功留下，獲得 1 枚籌碼！'):playing?(v.managed?.[v.turn]?'電腦託管中：'+v.seats[v.turn]:v.turn===v.me?'輪到你選擇行動':'等候 '+v.seats[v.turn]+' 行動'):v.readyRequired?'六人到齊且都準備好後，由房主開始。':'六人到齊後，由房主開始。';
-    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
+    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI・'+(v.personas?.[i]||'對手')+'）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
     const allReady=v.ready?.length===6&&v.ready.every(Boolean);
+    const targets=playing?v.seats.map((name,i)=>v.ai?.[i]?[i,name]:null).filter(Boolean):[];
+    $('ask-wrap').hidden=!targets.length;
+    const targetList=$('ask-target'), signature=JSON.stringify(targets);
+    if(targetList.dataset.list!==signature){
+      targetList.dataset.list=signature;
+      targetList.replaceChildren(...targets.map(([i,name])=>{const opt=document.createElement('option');opt.value=i;opt.textContent=name;return opt;}));
+    }
+    $('ask-ai').disabled=busy;
+    items('ai-debrief',done&&!unveiling&&v.aiDebrief?.length?v.aiDebrief.map(m=>'第 '+m.round+' 輪 · '+m.name+' 刻意誤導：「'+m.message+'」'):['本局沒有記錄到 AI 刻意誤導。']);
     const canManageAI=v.host&&!playing&&!unveiling;
+    $('fill-ai').hidden=!canManageAI||v.seats.length===6;
+    $('fill-ai').disabled=busy;
+    $('difficulty-wrap').hidden=!canManageAI;
+    $('room-difficulty').value=v.difficulty||'hard';
+    $('room-difficulty').disabled=busy;
     $('add-ai').hidden=!canManageAI||v.seats.length===6;
     $('remove-ai').hidden=!canManageAI||!v.ai?.includes(true);
     $('add-ai').disabled=$('remove-ai').disabled=busy;
@@ -280,9 +295,13 @@
     finally{clearTimeout(timeout);busy=false;render();if(chatDraft&&session&&!paused){const {message}=chatDraft;chatDraft=null;sendChat(message);}else schedule();}
   }
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
-  function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true}:{})});}
+  function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true,difficulty:$('entry-difficulty').value}:{})});}
   for(let i=0;i<6;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=pair(i);$('pair').append(opt);}
   $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start');$('leave').onclick=()=>request('leave');
+  $('practice').onclick=()=>request('create',{name:$('nickname').value.trim()||'玩家',practice:true,readyRequired:true,difficulty:$('entry-difficulty').value});
+  $('fill-ai').onclick=()=>request('fill-ai');
+  $('room-difficulty').onchange=()=>request('difficulty',{difficulty:$('room-difficulty').value});
+  $('ask-ai').onclick=()=>{if(!$('ask-wrap').hidden)request('chat',{message:'你查到什麼？',target:Number($('ask-target').value)});};
   $('add-ai').onclick=()=>request('add-ai');
   $('remove-ai').onclick=()=>{if(v?.ai?.includes(true))request('remove-ai',{seat:v.ai.lastIndexOf(true)});};
   $('ready').onclick=()=>{if(v)request('ready',{ready:!v.ready?.[v.me]});};
