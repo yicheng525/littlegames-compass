@@ -13,3 +13,17 @@
 @keyframes impact{0%{transform:translateX(-3px);box-shadow:0 0 22px #ff928780}45%{transform:translateX(3px)}100%{transform:none}}
 @media(prefers-reduced-motion:reduce){#rotor,#sweep,.dial-pin{transition:none}.impact{animation:none}}
 #rotor::after{content:"";position:absolute;top:3%;left:calc(50% - 3px);width:6px;height:15px;border-radius:8px;background:#dcb679;box-shadow:0 0 12px #e7bf84a0}
+#sweep{background:none;z-index:3;pointer-events:none}
+#sweep svg{width:100%;height:100%;transform:translateY(-21%) rotate(-90deg)}
+#sweep .muzzle{opacity:0}.impact #sweep.fired .muzzle{animation:muzzle .3s ease-out both}
+@keyframes muzzle{0%{opacity:1}100%{opacity:0}}
+#chamber-drum{width:min(100%,178px);aspect-ratio:1;position:relative;margin:14px auto;border:5px double #93a4b5;border-radius:50%;background:radial-gradient(circle,#3a5066 8%,#151b28 10%,#788594 35%,#374556 72%);box-shadow:0 8px 24px #080c16}
+.port{position:absolute;display:grid;place-items:center;transform:translate(-50%,-50%);width:24%;aspect-ratio:1;border-radius:50%;background:#070d16;border:2px solid #778698;box-shadow:inset 0 3px 8px #000;color:#c8d0dc;font-size:.78rem}
+.port.clear,.port.live{animation:chamberLight .55s both;border-color:#f8d48c}.port.live{background:radial-gradient(circle,#f4d692 18%,#a17339 23%,#e5b671 40%,#171421 61%);color:#fff;text-shadow:0 1px 3px #000}
+@keyframes chamberLight{from{opacity:.2;filter:brightness(.6)}to{opacity:1;filter:brightness(1)}}
+#chat-log{list-style:none;min-height:52px;max-height:185px;overflow:auto;padding:0;margin:.5em 0;overflow-wrap:anywhere}#chat-log li{padding:7px 0;border-bottom:1px solid var(--line)}
+#quick-chat{display:flex;flex-wrap:wrap;gap:6px}#quick-chat button{font-size:.82rem;padding:5px 8px}
+#chat-form{display:flex;gap:8px;align-items:end}#chat-form label{flex:1;min-width:0;margin-bottom:0}.chat-hint{font-size:.85rem;margin:.45em 0}
+@media(prefers-reduced-motion:reduce){.port.clear,.port.live,.impact #sweep.fired .muzzle{animation:none}}
+#clock{font-variant-numeric:tabular-nums;color:var(--gold);margin:8px 0}#clock.urgent{color:#ffa498} #sweep svg{transform:rotate(-90deg)}
+#quick-chat{display:grid;gap:6px}#quick-chat details{border:1px solid var(--line);border-radius:10px;padding:8px}#quick-chat summary{color:var(--gold);min-height:28px}.phrase-buttons{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
