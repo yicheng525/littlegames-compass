@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title>俄羅斯羅盤 · 小遊戲樂園</title><link rel="stylesheet" href="compass.css?v=16"></head>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title>俄羅斯羅盤 · 小遊戲樂園</title><link rel="stylesheet" href="compass.css?v=17"></head>
 <body><main>
-<header><span class="compass-icon" aria-hidden="true">✦</span><div><span class="eyebrow">LITTLE GAMES / SIX SEATS</span><h1>俄羅斯羅盤</h1><p class="tagline">六個座位，兩發子彈，一場心理戰。</p></div></header>
+<details id="game-info" class="panel"><summary>遊戲與房間資訊</summary><header><span class="compass-icon" aria-hidden="true">✦</span><div><span class="eyebrow">LITTLE GAMES / SIX SEATS</span><h1>俄羅斯羅盤</h1><p class="tagline">六個座位，兩發子彈，一場心理戰。</p></div></header>
 <details class="panel">
   <summary>玩法說明 · 開局、行動與勝負</summary>
   <h3>1. 六人開局</h3>
@@ -21,11 +21,12 @@
   <p><strong>第三位玩家用完點數時，完成該次行動後立即結算。</strong>遊戲依序對六個座位開槍：有子彈的兩席淘汰，空膛的四席各得 1 枚籌碼。用完點數不等於淘汰，勝負只看結算當下的彈巢位置。</p>
   <p>只有公開調查會公布內容，其他操作只顯示「行動結束」。個人剩餘點數不公開。調查紀錄只代表當時的位置，轉盤或秘密交換之後，原先安全的座位也可能改變。</p>
 </details>
+<div class="panel top room-bar" id="room-info" hidden><div><small>房間代碼</small><strong id="room-code"></strong></div><button id="copy">複製代碼</button><button id="invite">複製邀請連結</button></div>
+</details>
 <section id="entry" class="panel"><div class="entry-emblem" aria-hidden="true">✦</div><h2>今晚，誰能留下？</h2><label>暱稱<input id="nickname" maxlength="16" autocomplete="off" placeholder="輸入你的暱稱"></label><label>AI 難度<select id="entry-difficulty"><option value="easy">入門</option><option value="hard" selected>進階</option></select></label><label class="check-row"><input type="checkbox" id="practice-hints">單人練習：顯示羅盤線索</label><label class="check-row"><input type="checkbox" id="practice-memory">單人練習：無筆記挑戰</label><button id="practice">單人練習 · 對五位 AI</button><button id="create" class="accent">建立房間</button><label>房間代碼<input id="code" maxlength="8" autocapitalize="characters" autocomplete="off" placeholder="8 碼房間代碼"></label><button id="join">加入房間</button></section>
 <p id="connection" role="status" hidden></p><section id="room" hidden>
-<div class="panel top room-bar"><div><small>房間代碼</small><strong id="room-code"></strong></div><button id="copy">複製代碼</button><button id="invite">複製邀請連結</button></div>
-<div class="panel board-card"><div class="top"><h2 id="phase">等候玩家</h2><span id="points"></span></div><div id="countdown" hidden><p id="clock"></p><div class="clock-track" aria-hidden="true"><div id="clock-fill"></div></div></div><p id="turn" aria-live="polite"></p><p id="move-feedback" role="status" hidden></p>
-<div id="arena" hidden>
+<div class="panel board-card"><div id="board-status"><div class="top"><h2 id="phase">等候玩家</h2><span id="points"></span></div><div id="countdown" hidden><p id="clock"></p><div class="clock-track" aria-hidden="true"><div id="clock-fill"></div></div></div><p id="turn" aria-live="polite"></p><p id="move-feedback" role="status" hidden></p></div>
+<div id="arena" hidden><div id="arena-content">
   <div id="dial">
     <div id="rotor"><span></span></div><div id="dial-hub" aria-hidden="true">✦</div><div id="sweep" aria-hidden="true"><svg viewBox="0 0 260 260"><path d="M110 128h40v-12h-40zM116 127h18l-9 23h-14z" fill="#aab6c8" stroke="#151a26" stroke-width="2"/><path d="M150 119h15v6h-15z" fill="#d0d7e1"/><path class="muzzle" d="M165 122l10-7-2 5 12 2-12 2 2 5z" fill="#ffd889"/></svg></div>
     <div id="dial-clues" aria-hidden="true"></div><div id="dial-seats" role="group" aria-label="羅盤座位選格"></div>
@@ -33,7 +34,7 @@
   <p id="clue-legend" hidden>線索只代表已知資訊；「舊」表示之後有不明行動，「猜」是自己的筆記。</p><p id="pair-hint" hidden>點一個座位，會選取該席和順時針下一席。</p><p id="dial-caption" aria-live="polite"></p>
   <p id="board-event" aria-live="polite"></p><div id="chamber" hidden aria-label="彈巢查驗"><strong id="chamber-title"></strong><p id="chamber-info"></p></div>
   <button id="skip-reveal" hidden>直接看結果</button>
-</div><section class="panel" id="chat"><h2>房內聊天室</h2>
+</div></div><section class="panel" id="chat"><h2>房內聊天室</h2>
 <ul id="chat-log" role="log" aria-label="聊天訊息"></ul>
 <details><summary>快速發話</summary><div id="quick-chat"></div></details>
 <details id="ask-details" hidden><summary>點名 AI</summary><div id="ask-wrap" hidden><label>點名 AI<select id="ask-target"></select></label><button id="ask-ai" type="button">你查到什麼？</button></div></details><form id="chat-form"><label>訊息<input id="chat-input" maxlength="120" autocomplete="off" placeholder="輸入訊息"></label><button id="chat-send" type="submit">送出</button></form><p id="chat-status" role="status" hidden></p>
@@ -46,4 +47,4 @@
 </section>
 <p id="status" role="status" aria-live="polite"></p>
 
-</main><script src="compass.js?v=16"></script></body></html>
+</main><script src="compass.js?v=17"></script></body></html>

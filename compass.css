@@ -95,3 +95,14 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 @media(max-width:769px){#room.in-play .room-bar{display:none}#room.in-play #arena{margin:6px auto}#room.in-play #dial{width:min(100%,250px,36dvh)}#room.in-play #dial-caption{margin:3px 0}#room.in-play .board-card{padding:9px}#room.in-play #countdown p,#room.in-play #turn{margin:3px 0}#room.in-play #ask-wrap{margin-top:4px}#room.in-play #pair-hint{display:none}}
 @media(max-width:769px){body:has(#room.in-play) header{margin:0 0 6px}body:has(#room.in-play) header h1{font-size:22px}body:has(#room.in-play) header .tagline{display:none}body:has(#room.in-play) header .compass-icon{width:34px;font-size:1.2rem}body:has(#room.in-play) header+details.panel{padding:6px 10px;margin-bottom:5px}}
 #chat-status{font-size:.76rem;margin:3px 0 0;color:var(--gold)} #ask-details,#chat>details{font-size:.8rem;margin:4px 0}#series-board summary,#recap summary{font-weight:700}
+#game-info>summary{font-weight:750;color:var(--gold)}
+#game-info .room-bar{margin:10px 0 0}
+.board-card{display:flex;flex-direction:column}
+#arena{order:-2;width:100%}#board-status{order:-1}#chat-log{position:relative;overflow-anchor:none}
+#board-event,#move-feedback{font-size:clamp(.95rem,3.7vw,1.14rem);font-weight:750;padding:7px 10px;border-radius:9px;background:#37291d;color:#ffe2aa;overflow-wrap:anywhere}
+.chamber-state{font-size:clamp(12px,3.6vw,19px);font-weight:900;white-space:nowrap;line-height:1.1}.chamber-state.loaded{color:#ffce89}.chamber-state.empty{color:#b9fff0}
+html.reveal-lock,html.reveal-lock body{overflow:hidden;overscroll-behavior:none}
+#arena.revealing{position:fixed;inset:0;z-index:20;margin:0;display:grid;place-items:center;background:#100f11f5;touch-action:none;overscroll-behavior:none}
+#arena.revealing #arena-content{width:min(92vw,380px);padding:10px}
+#arena.revealing #dial{width:min(100%,300px,53dvh)}#arena.revealing #dial-caption{font-size:clamp(19px,5vw,28px);font-weight:850}
+@media(max-width:769px){#game-info{padding:7px 10px;margin-bottom:6px}#room.in-play #arena{width:100%}}

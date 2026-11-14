@@ -83,8 +83,15 @@
   function showChat(){
     const messages=v.chat||[],latest=messages.at(-1)?.id||'';
     if(latest!==chatKey){
-      chatKey=latest;const atBottom=(log.scrollHeight-log.scrollTop-log.clientHeight)<36;
-      items('chat-log',messages.map(m=>(m.at?new Date(m.at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+' · ':'')+'玩家聲稱 · '+m.name+(m.ai?'（AI）':'')+'：'+m.message));if(atBottom)log.scrollTop=log.scrollHeight;
+      chatKey=latest;
+      const reading=log.scrollTop>12, old=Array.from(log.children);
+      const anchor=reading?old.find(n=>n.offsetTop+n.offsetHeight>log.scrollTop):null;
+      const offset=anchor?anchor.offsetTop-log.scrollTop:0;
+      const oldScroll=log.scrollTop;
+      const newest=messages.slice().reverse();
+      items('chat-log',newest.map(m=>(m.at?new Date(m.at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+' · ':'')+'玩家聲稱 · '+m.name+(m.ai?'（AI）':'')+'：'+m.message));Array.from(log.children).forEach((n,i)=>{n.dataset.messageId=newest[i].id;});
+      const same=anchor&&Array.from(log.children).find(n=>n.dataset.messageId===anchor.dataset.messageId);
+      log.scrollTop=reading?(same?same.offsetTop-offset:oldScroll):0;
     }
     $('chat-send').disabled=false;
   }
@@ -152,6 +159,7 @@
       const last=next.notes.at(-1);
       if(last?.kind==='swap'&&last.automatic){moveFeedback='時間到，已隨機完成交換 '+pair(last.slot)+'。';moveState='auto';}
     }
+    if(next.phase==='play'&&(prev?.phase!=='play'||prev.matchId!==next.matchId))$('game-info').open=false;
     v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
     if(!same){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;}
@@ -199,6 +207,8 @@
   function drawDial(playing,done){
     const unveiling=done&&reveal>=0;
     $('arena').hidden=!playing&&!done;
+    $('arena').classList.toggle('revealing',unveiling);
+    document.documentElement?.classList.toggle('reveal-lock',unveiling);
     $('skip-reveal').hidden=!unveiling;
     $('rotor').style.transform='rotate('+angle+'deg)';
     $('sweep').hidden=!unveiling;
@@ -222,9 +232,15 @@
       const name=v.seats[i]||'';
       const status=shown?(v.result[i].marked?' ×':' ✓'):inspected?(inspection.marks[offset]?' · 有彈':' · 空膛'):'';
       pins[i].textContent=letters[i]+status;
+      if(shown||inspected){
+        const label=document.createElement('strong'),loaded=shown?v.result[i].marked:inspection.marks[offset];
+        label.className='chamber-state '+(loaded?'loaded':'empty');
+        label.textContent=loaded?'上膛':'空膛';
+        pins[i].textContent=letters[i];pins[i].append(label);
+      }
       pins[i].dataset.name=name+(v.ai?.[i]?' · AI':i===v.me?' · 你':v.managed?.[i]?' · 託管':'');
     }
-    $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(hit?'砰！擊發':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
+    $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(hit?'砰！上膛':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
   }
   function tickClock(){
     const clock=$('clock');$('countdown').hidden=clock.hidden=v?.phase!=='play'||!localDeadline;
@@ -241,10 +257,11 @@
   setInterval(tickClock,250);
   function render(){
     $('connection').hidden=!connection;$('connection').textContent=connection;
+    $('room-info').hidden=!v;
     $('entry').hidden=!!session;$('room').hidden=!v;
     for(const id of ['create','join'])$(id).disabled=busy;
     $('practice').disabled=busy;
-    if(!v){chatStatus('');chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
+    if(!v){document.documentElement?.classList.remove('reveal-lock');$('arena').classList.remove('revealing');chatStatus('');chatDraft=null;chatKey='';items('chat-log',[]);$('chamber').hidden=true;return;}
     showChat();
     const playing=v.phase==='play',done=v.phase==='done';
     const unveiling=done&&reveal>=0;
@@ -253,6 +270,7 @@
     $('seats').hidden=playing;
     const news=v.events.at(-1);
     $('board-event').textContent=playing&&news?v.seats[news.i]+actorTag(news)+eventText(news):'';
+    $('board-event').hidden=!playing||!news;
     $('room-code').textContent=v.code;
     $('move-feedback').hidden=!moveFeedback;
     $('move-feedback').textContent=moveFeedback;
