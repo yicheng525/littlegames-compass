@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title>俄羅斯羅盤 · 小遊戲樂園</title><link rel="stylesheet" href="compass.css?v=20"></head>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title>俄羅斯羅盤 · 小遊戲樂園</title><link rel="stylesheet" href="compass.css?v=22"></head>
 <body><main>
 <details id="game-info" class="panel" open><summary hidden>遊戲與房間資訊</summary><header><span class="compass-icon" aria-hidden="true">✦</span><div><span class="eyebrow">LITTLE GAMES / SIX SEATS</span><h1>俄羅斯羅盤</h1><p class="tagline">六個座位，兩發子彈，一場心理戰。</p></div></header>
 <details id="game-rules" class="panel">
@@ -29,7 +29,27 @@
 <div class="panel board-card"><div id="board-status"><div class="top"><h2 id="phase">等候玩家</h2><span id="points"></span></div><div id="countdown" hidden><p id="clock"></p><div class="clock-track" aria-hidden="true"><div id="clock-fill"></div></div></div><p id="turn" aria-live="polite"></p><p id="move-feedback" role="status" hidden></p></div>
 <div id="arena" hidden><div id="arena-content">
   <div id="dial">
-    <div id="rotor"><span></span></div><div id="dial-hub" aria-hidden="true">✦</div><div id="sweep" aria-hidden="true"><svg viewBox="0 0 260 260"><path d="M110 128h40v-12h-40zM116 127h18l-9 23h-14z" fill="#aab6c8" stroke="#151a26" stroke-width="2"/><path d="M150 119h15v6h-15z" fill="#d0d7e1"/><path class="muzzle" d="M165 122l10-7-2 5 12 2-12 2 2 5z" fill="#ffd889"/></svg></div>
+    <div id="rotor"><span></span></div><div id="dial-hub" aria-hidden="true">✦</div><div id="sweep" aria-hidden="true"><svg viewBox="0 0 260 260" focusable="false">
+<defs>
+ <linearGradient id="gun-steel" x2="0%" y2="100%"><stop stop-color="#d1dae0"/><stop offset=".22" stop-color="#78899a"/><stop offset=".5" stop-color="#333c47"/><stop offset=".77" stop-color="#626e7b"/><stop offset="1" stop-color="#232833"/></linearGradient>
+ <linearGradient id="gun-wood" x2="100%" y2="100%"><stop stop-color="#9c6040"/><stop offset=".5" stop-color="#583424"/><stop offset="1" stop-color="#241a19"/></linearGradient>
+ <radialGradient id="gun-flash"><stop stop-color="#fff9dc"/><stop offset=".5" stop-color="#ffd57c"/><stop offset="1" stop-color="#ed7c37"/></radialGradient>
+</defs>
+<g stroke="#15181e" stroke-width="1.65" stroke-linejoin="round">
+ <path fill="#424952" d="M113 121l-9-6 2-7 5-1 4 7 8 2-3 9z"/>
+ <path fill="url(#gun-steel)" d="M106 118q5-5 15-6l15 2 7 3h43l2 4v12h-45l-9 6h-15l-5 6-9-8 5-9z"/>
+ <path fill="url(#gun-steel)" d="M146 128h39v7h-41zM172 117l3-4h8v4z"/>
+ <path fill="none" stroke="#858d95" stroke-width="2.7" d="M117 138q1 12 11 12 9 0 11-12"/>
+ <path fill="none" stroke="#b1bbc6" stroke-width="1.5" d="M125 138q-1 4 3 6"/>
+ <path fill="url(#gun-wood)" d="M108 130q6 1 12 9l-9 27q-1 4-6 3l-13-4q-3-2-1-7l11-14z"/>
+ <path fill="url(#gun-steel)" d="M121 116h17q4 2 4 7v7q-1 4-4 5h-17q-6-2-6-7v-7q2-4 6-5z"/>
+ <path fill="#20252e" stroke="#8595a1" stroke-width=".65" d="M121 120h14q3 1 3 3h-17q-2-1 0-3zm0 7h17q0 3-3 3h-13q-2-1-1-3z"/>
+ <ellipse cx="185" cy="125" rx="3.5" ry="7" fill="#707d88"/><ellipse cx="186" cy="125" rx="1.6" ry="3.1" fill="#181b21" stroke="none"/>
+ <path d="M145 120h35M146 124h28M98 160l11-18m-8 20 11-18" stroke="#e0c2a4" stroke-opacity=".47" stroke-width=".8" fill="none"/>
+ <circle cx="106" cy="154" r="1.7" fill="#bda278"/>
+</g>
+<path class="muzzle" fill="url(#gun-flash)" d="M188 125l13-7-2 5 14 2-14 3 3 6z"/>
+</svg></div>
     <div id="dial-clues" aria-hidden="true"></div><div id="dial-seats" role="group" aria-label="羅盤座位選格"></div>
   </div>
   <p id="clue-legend" hidden>線索只代表已知資訊；「舊」表示之後有不明行動，「猜」是自己的筆記。</p><p id="pair-hint" hidden>點一個座位，會選取該席和順時針下一席。</p><p id="dial-caption" aria-live="polite"></p>
@@ -48,5 +68,5 @@
 </section>
 <p id="status" role="status" aria-live="polite"></p>
 
-</main><script src="compass-audio.js?v=21"></script><script src="compass.js?v=21"></script></body></html>
+</main><script src="compass-audio.js?v=22"></script><script src="compass.js?v=22"></script></body></html>
 

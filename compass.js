@@ -2,6 +2,7 @@
   'use strict';
   const endpoint='https://little-games-compass-rooms.ciclol.chatgpt.site/v1/room';
   const $=id=>document.getElementById(id),key='little-games-compass-web-v1:'+location.pathname,letters='ABCDEF';
+  let revealSoundTimer;
   let inFlight=null,queuedMove=null,inspection=null;
   let session=null,v=null,busy=false,paused=false,timer=null,failures=0;
   try{const s=JSON.parse(localStorage.getItem(key));if(s&&typeof s.code==='string'&&typeof s.token==='string')session=s;}catch{}
@@ -226,10 +227,12 @@
     $('sweep').classList.toggle('fired',!!hit);
     if(unveiling&&$('dial').dataset.step!==String(reveal)){
       $('dial').dataset.step=String(reveal);
-      sound?.cue(hit?'fire':'empty');
+      clearTimeout(revealSoundTimer);
+      if(sound)revealSoundTimer=window.setTimeout?.(()=>sound.cue(hit?'fire':'empty'),270);
       $('dial').classList.remove('impact');
       if(hit){void $('dial').offsetWidth;$('dial').classList.add('impact');}
     }else if(!unveiling){
+      clearTimeout(revealSoundTimer);
       delete $('dial').dataset.step;$('dial').classList.remove('impact');
     }
     for(let i=0;i<6;i++){

@@ -6,10 +6,10 @@ Recording unchanged; the game loops it and lowers playback volume.
 Sound effects — Brian MacIntosh (BMacZero), CC0:
 clipload1.wav, clipload2.wav, singlebullet1.wav
 https://opengameart.org/content/gun-reload-sound-effects
-rattle1.wav, lightclunk1.wav, clank1.wav
+rattle1.wav, lightclunk1.wav, clank1.wav, squeakyclick1.wav
 https://opengameart.org/content/mechanical-sounds
 
-Dull explosion — Iwan Gabovitch (qubodup), CC0:
-explosion_dull.flac
-https://opengameart.org/content/dull-explosion
+Pistol shot — kurt, “22 Pistol.wav”, CC0:
+https://opengameart.org/content/gunshots
+A single shot excerpt, converted to mono 48 kHz and lightly faded at the tail.
 CC0: https://creativecommons.org/publicdomain/zero/1.0/
