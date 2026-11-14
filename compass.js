@@ -152,6 +152,7 @@
     }
     if(same){
       const moves=next.events.filter(e=>e.seq>prev.seq);
+      if(moves.length)sound?.cue('actionDone');
       const turn=moves.reduce((sum,e)=>sum+(e.kind==='rotate1'?60:e.kind==='rotate2'?120:0),0);
       rotating=turn>0;angle+=turn;if(turn)sound?.cue('rotate');
     }
