@@ -5,6 +5,12 @@
   let inFlight=null,queuedMove=null,inspection=null;
   let session=null,v=null,busy=false,paused=false,timer=null,failures=0;
   try{const s=JSON.parse(localStorage.getItem(key));if(s&&typeof s.code==='string'&&typeof s.token==='string')session=s;}catch{}
+  const sound=window.CompassSound;
+  for(const [kind,id,label] of [['music','music-toggle','配樂'],['fx','fx-toggle','效果音']]){
+    const button=$(id);
+    const update=on=>{button.textContent=label+'：'+(on?'開':'關');button.setAttribute('aria-pressed',String(on));};
+    if(sound){update(sound.enabled(kind));button.onclick=()=>update(sound.toggle(kind));}
+  }
   const say=s=>$('status').textContent=s;
   const pair=i=>letters[i]+'・'+letters[(i+1)%6];
   const mark=x=>x?'有子彈':'空膛';
@@ -120,6 +126,7 @@
   let liveClueKey='';
   function chamberPreview(event){
     if(!event?.marks)return;
+    sound?.cue('check');
     clearTimeout(chamberTimer);
     $('chamber').hidden=false;
     $('chamber-title').textContent=event.kind==='private'?'私下調查 · 只有你看得到':'公開調查 · '+v.seats[event.i];
@@ -129,7 +136,7 @@
   }
   let angle=0,reveal=-1,revealTimer,rotating=false;
   function finishReveal(){
-    clearTimeout(revealTimer);reveal=-1;render();
+    const wasPlaying=reveal>=0;clearTimeout(revealTimer);reveal=-1;render();if(wasPlaying)sound?.cue('end');
   }
   function revealNext(){
     if(reduced.matches||document.hidden||reveal===5){finishReveal();return;}
@@ -146,7 +153,7 @@
     if(same){
       const moves=next.events.filter(e=>e.seq>prev.seq);
       const turn=moves.reduce((sum,e)=>sum+(e.kind==='rotate1'?60:e.kind==='rotate2'?120:0),0);
-      rotating=turn>0;angle+=turn;
+      rotating=turn>0;angle+=turn;if(turn)sound?.cue('rotate');
     }
     if(!same&&next.phase!=='done'){moveFeedback='';moveState='';pendingMove=null;}
     if(same){
@@ -161,6 +168,7 @@
     }
     if(next.phase==='play'&&(prev?.phase!=='play'||prev.matchId!==next.matchId))$('game-info').open=false;
     v=next;loadGuesses(next,prev);
+    if(next.phase==='play'&&next.turn===next.me&&(prev?.turn!==next.me||prev.matchId!==next.matchId))sound?.cue('turn');
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
     if(!same){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;}
     if(next.memoryOnly){
@@ -217,6 +225,7 @@
     $('sweep').classList.toggle('fired',!!hit);
     if(unveiling&&$('dial').dataset.step!==String(reveal)){
       $('dial').dataset.step=String(reveal);
+      sound?.cue(hit?'fire':'empty');
       $('dial').classList.remove('impact');
       if(hit){void $('dial').offsetWidth;$('dial').classList.add('impact');}
     }else if(!unveiling){
@@ -257,13 +266,12 @@
   setInterval(tickClock,250);
   function render(){
     $('connection').hidden=!connection;$('connection').textContent=connection;
+    sound?.scene(v?.phase==='play');
     const info=$('game-info'), inRoom=!!v;
     if(info.dataset.inRoom!==String(inRoom)){
       info.dataset.inRoom=String(inRoom);
       info.open=!inRoom;
-      $('game-rules').open=!inRoom;
-      $('rules-summary').hidden=!inRoom;
-      $('home-rules-title').hidden=inRoom;
+      $('game-rules').open=false;
     }
     $('room-info').hidden=!v;
     $('entry').hidden=!!session;$('room').hidden=!v;
@@ -389,9 +397,10 @@
         recovering=false;resumeSeq=null;
       }
       if(op==='move'){
+        if(extra.kind==='swap')sound?.cue('lock');
         moveState='sent';moveFeedback=v.exchange?'可以交換：請選擇相鄰兩格。':extra.kind==='swap'?'點數已投入，本回合結束。':'行動已完成：'+actionNames[extra.kind];pendingMove=null;
       }
-      if(op==='finish-swap'){moveState='sent';moveFeedback='已完成秘密交換 '+pair(extra.slot)+'。';}
+      if(op==='finish-swap'){sound?.cue('lock');moveState='sent';moveFeedback='已完成秘密交換 '+pair(extra.slot)+'。';}
       if(op==='state'&&pendingMove&&v&&v.seq>pendingMove.seq){
         const actual=v.events.find(e=>e.seq===pendingMove.seq+1);
         if(actual&&!actual.auto&&actual.i===v.me){moveState='sent';moveFeedback='已從房間確認你的行動完成。';}

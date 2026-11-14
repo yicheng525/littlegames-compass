@@ -107,3 +107,4 @@ html.reveal-lock,html.reveal-lock body{overflow:hidden;overscroll-behavior:none}
 #arena.revealing #dial{width:min(100%,300px,53dvh)}#arena.revealing #dial-caption{font-size:clamp(19px,5vw,28px);font-weight:850}
 @media(max-width:769px){#game-info{padding:7px 10px;margin-bottom:6px}#room.in-play #arena{width:100%}}
 #game-info[data-in-room="true"]>summary[hidden]{display:list-item!important}
+#audio-controls{display:flex;justify-content:flex-end;gap:6px;margin:4px 0 7px}#audio-controls button{min-height:34px;font-size:.76rem;padding:3px 8px}#audio-controls button[aria-pressed="true"]{color:var(--gold)}
