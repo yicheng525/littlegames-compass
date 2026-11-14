@@ -2,7 +2,6 @@
   'use strict';
   const endpoint='https://little-games-compass-rooms.ciclol.chatgpt.site/v1/room';
   const $=id=>document.getElementById(id),key='little-games-compass-web-v1:'+location.pathname,letters='ABCDEF';
-  let revealSoundTimer;
   let inFlight=null,queuedMove=null,inspection=null;
   let session=null,v=null,busy=false,paused=false,timer=null,failures=0;
   try{const s=JSON.parse(localStorage.getItem(key));if(s&&typeof s.code==='string'&&typeof s.token==='string')session=s;}catch{}
@@ -135,14 +134,17 @@
     inspection=event;
     chamberTimer=setTimeout(()=>{inspection=null;$('chamber').hidden=true;if(v)drawDial(v.phase==='play',v.phase==='done');},event.expires?Math.max(0,event.expires-v.serverNow):6500);
   }
-  let angle=0,reveal=-1,revealTimer,rotating=false;
+  let angle=0,reveal=-1,revealTimer,rotating=false,revealReady=false;
   function finishReveal(){
-    const wasPlaying=reveal>=0;clearTimeout(revealTimer);reveal=-1;render();if(wasPlaying)sound?.cue('end');
+    const wasPlaying=reveal>=0;clearTimeout(revealTimer);reveal=-1;revealReady=false;render();if(wasPlaying)sound?.cue('end');
   }
-  function revealNext(){
-    if(reduced.matches||document.hidden||reveal===5){finishReveal();return;}
-    reveal++;render();
-    revealTimer=setTimeout(revealNext,reveal===5?1020:760);
+  function aimAt(seat){
+    reveal=seat;revealReady=false;render();
+    revealTimer=setTimeout(()=>{
+      if(reduced.matches||document.hidden){finishReveal();return;}
+      revealReady=true;render();
+      revealTimer=setTimeout(()=>seat===5?finishReveal():aimAt(seat+1),seat===5?1040:525);
+    },360);
   }
   $('skip-reveal').onclick=finishReveal;
   reduced.addEventListener?.('change',()=>{if(reduced.matches&&reveal>=0)finishReveal();});
@@ -183,8 +185,7 @@
     }
     if(same&&next.phase==='done'&&!reduced.matches&&!document.hidden){
       if(!next.memoryOnly){clearTimeout(chamberTimer);inspection=null;$('chamber').hidden=true;}
-      reveal=0;
-      revealTimer=setTimeout(revealNext,1120);
+      aimAt(0);
     }
   }
   function drawClues(){
@@ -223,20 +224,18 @@
     $('rotor').style.transform='rotate('+angle+'deg)';
     $('sweep').hidden=!unveiling;
     if(unveiling)$('sweep').style.transform='rotate('+(reveal*60)+'deg)';
-    let hit=unveiling&&v.result[reveal].marked;
+    const hit=unveiling&&revealReady&&v.result[reveal].marked;
     $('sweep').classList.toggle('fired',!!hit);
-    if(unveiling&&$('dial').dataset.step!==String(reveal)){
+    if(unveiling&&revealReady&&$('dial').dataset.step!==String(reveal)){
       $('dial').dataset.step=String(reveal);
-      clearTimeout(revealSoundTimer);
-      if(sound)revealSoundTimer=window.setTimeout?.(()=>sound.cue(hit?'fire':'empty'),270);
+      sound?.cue(hit?'fire':'empty');
       $('dial').classList.remove('impact');
       if(hit){void $('dial').offsetWidth;$('dial').classList.add('impact');}
-    }else if(!unveiling){
-      clearTimeout(revealSoundTimer);
+    }else if(!unveiling||!revealReady){
       delete $('dial').dataset.step;$('dial').classList.remove('impact');
     }
     for(let i=0;i<6;i++){
-      const shown=done&&(!unveiling||i<=reveal);
+      const shown=done&&(!unveiling||(i<reveal||i===reveal&&revealReady));
       pins[i].className='dial-pin'+(unveiling&&i===reveal?' scan':'')+(shown?(v.result[i].marked?' hit':' safe'):playing&&v.turn===i?' scan':'');
       const offset=(i-(inspection?.slot??i)+6)%6;
       const inspected=!!inspection&&offset<2;
@@ -253,7 +252,7 @@
       }
       pins[i].dataset.name=name+(v.ai?.[i]?' · AI':i===v.me?' · 你':v.managed?.[i]?' · 託管':'');
     }
-    $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(hit?'砰！上膛':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
+    $('dial-caption').textContent=unveiling?(letters[reveal]+' 座 · '+(!revealReady?'即將揭曉':hit?'砰！上膛':'喀！空膛')):done?'掃描完成 · 兩席淘汰':rotating?'輪盤已順時針轉動':'六席羅盤';
   }
   function tickClock(){
     const clock=$('clock');$('countdown').hidden=clock.hidden=v?.phase!=='play'||!localDeadline;
@@ -304,7 +303,7 @@
     $('phase').textContent=done?(unveiling?'最後掃描':'對局結算'):playing?'第 '+v.round+' 輪':'等候玩家 '+v.seats.length+' / 6';
     $('points').textContent=playing?'你的點數 '+v.points:'';
     $('turn').textContent=done?(unveiling?'按座位順序揭曉結果…':v.result[v.me].marked?'你的座位被擊發，本局淘汰。':'你成功留下，獲得 1 枚籌碼！'):playing?(v.managed?.[v.turn]?'電腦託管中：'+v.seats[v.turn]:v.turn===v.me?'輪到你選擇行動':'等候 '+v.seats[v.turn]+' 行動'):v.readyRequired?'六人到齊且都準備好後，由房主開始。':'六人到齊後，由房主開始。';
-    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
+    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(v.ai?.[i]?'（AI）':i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||(i<reveal||i===reveal&&revealReady))?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||(i<reveal||i===reveal&&revealReady))&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
     const allReady=v.ready?.length===6&&v.ready.every(Boolean);
     const targets=playing?v.seats.map((name,i)=>v.ai?.[i]?[i,name]:null).filter(Boolean):[];
     $('ask-details').hidden=$('ask-wrap').hidden=!targets.length;

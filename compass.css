@@ -48,8 +48,8 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 #rotor span{position:absolute;inset:12%;border-radius:50%;border:1px dashed #9e805d59}
 #dial-hub{background:radial-gradient(circle,#514230,#221d20 75%);box-shadow:0 4px 12px #0008}
 .dial-pin{z-index:1;background:#262028;border-color:#8f7459;box-shadow:0 3px 7px #0007}.dial-pin.scan{background:#675033;box-shadow:0 0 16px #efc88255}
-#sweep{transition:transform .36s cubic-bezier(.22,.68,.19,1)}#sweep svg{filter:drop-shadow(0 3px 4px #000c)}.impact #sweep.fired svg{animation:recoil .32s .27s ease-out both}.impact #sweep.fired .muzzle{animation:muzzle .24s .27s ease-out both}
-#dial.impact{animation:impact .3s .27s ease-out}
+#sweep{transition:transform .36s cubic-bezier(.22,.68,.19,1)}#sweep svg{filter:drop-shadow(0 3px 4px #000c)}.impact #sweep.fired svg{animation:recoil .32s ease-out both}.impact #sweep.fired .muzzle{animation:muzzle .24s ease-out both}
+#dial.impact{animation:impact .3s ease-out}
 @keyframes recoil{0%{transform:rotate(-90deg)}18%{transform:rotate(-90deg) translateX(-8px)}100%{transform:rotate(-90deg)}}
 #dial-caption{font-size:.91rem;letter-spacing:.06em;color:var(--gold)}
 #chamber{animation:inspect .45s cubic-bezier(.2,.72,.3,1) both;text-align:center;border-color:#97754c}
