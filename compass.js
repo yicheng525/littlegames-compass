@@ -33,13 +33,14 @@
     else try{const saved=JSON.parse(localStorage.getItem(key+':guess:'+scope));if(saved?.length===6&&saved.every(n=>Number.isInteger(n)&&n>=0&&n<=2))guesses=saved;}catch{}
     drawGuesses();
   }
+  const actorTag=e=>e.bot?' · 電腦託管 · ':e.auto?' · 逾時自動 · ':' · ';
   const eventText=e=>e.kind==='open'?'公開調查 '+marksText(e):(actionNames[e.kind]||'行動');
   let moveFeedback='',moveState='',pendingMove=null;
   function selection(){
     const kind=$('kind').value;
     $('amount-wrap').hidden=kind!=='swap';
     $('pair-wrap').hidden=!['open','private','swap'].includes(kind)||(kind==='swap'&&(v?.pool||0)+Number($('amount').value)<6);
-    const slot=Number($('pair').value), myTurn=v?.phase==='play'&&v.turn===v.me;
+    const slot=Number($('pair').value), myTurn=v?.phase==='play'&&v.turn===v.me&&!v.managed?.[v.me];
     const choosing=myTurn&&!$('pair-wrap').hidden;
     const cost={open:1,private:2,rotate1:3,rotate2:4,swap:Number($('amount').value)}[kind];
     const expired=localDeadline&&Date.now()>=localDeadline;
@@ -130,7 +131,7 @@
     if(!same&&next.phase!=='done'){moveFeedback='';moveState='';pendingMove=null;}
     if(same){
       const auto=next.events.filter(e=>e.seq>prev.seq&&e.auto).at(-1);
-      if(auto){moveFeedback=next.seats[auto.i]+' 逾時，系統'+eventText(auto);moveState='auto';}
+      if(auto){moveFeedback=next.seats[auto.i]+(auto.bot?'（電腦託管）':' 逾時，系統')+eventText(auto);moveState='auto';}
     }
     v=next;loadGuesses(next,prev);
     localDeadline=next.deadline?Date.now()+Math.max(0,next.deadline-next.serverNow):0;
@@ -196,18 +197,27 @@
     $('move-feedback').className=moveState;
     $('recap').hidden=!done||unveiling;
     $('deduction').hidden=!playing;
-    if(done&&!unveiling)items('recap-events',v.events.slice(-6).map(e=>'第 '+eventRound(e)+' 輪 · '+v.seats[e.i]+(e.auto?' · 逾時自動 · ':' · ')+eventText(e)));
+    if(done&&!unveiling)items('recap-events',v.events.slice(-6).map(e=>'第 '+eventRound(e)+' 輪 · '+v.seats[e.i]+actorTag(e)+eventText(e)));
     const final=v.events.at(-1);
     $('finish-action').textContent=done&&final?'第 '+eventRound(final)+' 輪，'+v.seats[final.i]+(final.auto?'的逾時自動行動（':'完成「')+(final.auto?eventText(final)+'）':eventText(final)+'」')+'後，第三位玩家用完點數，觸發結算。':'';
     $('phase').textContent=done?(unveiling?'最後掃描':'對局結算'):playing?'第 '+v.round+' 輪':'等候玩家 '+v.seats.length+' / 6';
     $('points').textContent=playing?'你的點數 '+v.points:'';
-    $('turn').textContent=done?(unveiling?'按座位順序揭曉結果…':v.result[v.me].marked?'你的座位被擊發，本局淘汰。':'你成功留下，獲得 1 枚籌碼！'):playing?(v.turn===v.me?'輪到你選擇行動':'等候 '+v.seats[v.turn]+' 行動'):'六人到齊後，由房主開始。';
-    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(i===v.me?'（你）':'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
+    $('turn').textContent=done?(unveiling?'按座位順序揭曉結果…':v.result[v.me].marked?'你的座位被擊發，本局淘汰。':'你成功留下，獲得 1 枚籌碼！'):playing?(v.managed?.[v.turn]?'電腦託管中：'+v.seats[v.turn]:v.turn===v.me?'輪到你選擇行動':'等候 '+v.seats[v.turn]+' 行動'):v.readyRequired?'六人到齊且都準備好後，由房主開始。':'六人到齊後，由房主開始。';
+    items('seats',Array.from({length:6},(_,i)=>({text:(v.phase==='lobby'?i+1:letters[i])+' · '+(v.seats[i]||'空位')+(i===v.me?'（你）':'')+(playing&&v.managed?.[i]?' · 電腦託管中':!playing&&!unveiling&&v.seats[i]?(v.ready?.[i]?' · 已準備':' · 未準備'):'')+(done&&(!unveiling||i<=reveal)?(v.result[i].marked?' · 淘汰':' · +1 籌碼'):''),className:done&&(!unveiling||i<=reveal)&&v.result[i].marked?'marked':playing&&i===v.turn?'current':''})));
+    const allReady=v.ready?.length===6&&v.ready.every(Boolean);
+    $('ready').hidden=playing||unveiling;
+    $('ready').textContent=v.ready?.[v.me]?'取消準備':'準備好了';
+    $('ready').disabled=busy;
+    $('reclaim').hidden=!playing||!v.managed?.[v.me];
+    $('reclaim').disabled=busy;
+    $('control-notices').hidden=!v.notices?.length||unveiling;
+    items('control-notices',(v.notices||[]).slice(-4).map(n=>n.name+(n.kind==='managed'?' 已由電腦託管':' 已取回控制')));
     $('start').hidden=!v.host||v.seats.length!==6||playing||unveiling;
     $('start').textContent=done?'再開一局':'六人開局';
-    $('start').disabled=$('leave').disabled=busy;
+    $('leave').disabled=busy;
+    $('start').disabled=busy||(v.readyRequired&&!allReady);
     $('leave').hidden=playing||unveiling;
-    $('actions').hidden=!playing||v.turn!==v.me;
+    $('actions').hidden=!playing||v.turn!==v.me||!!v.managed?.[v.me];
     $('room').classList.toggle('your-turn',!$('actions').hidden);
     $('history').hidden=v.phase==='lobby';
     $('pool').textContent='交換累積 '+v.pool+' / 6';
@@ -221,7 +231,7 @@
       return e.kind==='swap'?'已秘密交換 '+pair(e.slot):'已投入 '+e.amount+' 點';
     };
     items('notes',v.notes.length?v.notes.slice().reverse().map(n=>'第 '+eventRound(n)+' 輪 · #'+n.seq+' '+clue(n)):['還沒有私下紀錄。']);
-    items('events',v.events.length?v.events.slice(-12).reverse().map(e=>'第 '+eventRound(e)+' 輪 · #'+e.seq+' '+v.seats[e.i]+(e.auto?' · 逾時自動 · ':' · ')+(e.kind==='open'?'公開調查 '+clue(e):eventText(e))):['等待第一個行動。']);
+    items('events',v.events.length?v.events.slice(-12).reverse().map(e=>'第 '+eventRound(e)+' 輪 · #'+e.seq+' '+v.seats[e.i]+actorTag(e)+(e.kind==='open'?'公開調查 '+clue(e):eventText(e))):['等待第一個行動。']);
     selection();tickClock();
   }
   async function request(op,extra={}){
@@ -266,9 +276,11 @@
     finally{clearTimeout(timeout);busy=false;render();if(chatDraft&&session&&!paused){const {message}=chatDraft;chatDraft=null;sendChat(message);}else schedule();}
   }
   function schedule(){clearTimeout(timer);if(session&&!paused&&!document.hidden)timer=setTimeout(()=>request('state'),failures?Math.min(12000,1800*failures):v?.phase==='play'?1900:3000);}
-  function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code});}
+  function enter(op){const name=$('nickname').value.trim(),code=$('code').value.trim().toUpperCase();if(!name){say('請先輸入暱稱。');return;}if(op==='join'&&!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){say('請輸入 8 碼房間代碼。');return;}request(op,{name,code,...(op==='create'?{readyRequired:true}:{})});}
   for(let i=0;i<6;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=pair(i);$('pair').append(opt);}
   $('create').onclick=()=>enter('create');$('join').onclick=()=>enter('join');$('start').onclick=()=>request('start');$('leave').onclick=()=>request('leave');
+  $('ready').onclick=()=>{if(v)request('ready',{ready:!v.ready?.[v.me]});};
+  $('reclaim').onclick=()=>request('reclaim');
   $('kind').onchange=$('amount').onchange=$('pair').onchange=selection;
   $('move').onclick=()=>{if(v&&v.turn===v.me&&!$('move').disabled)request('move',{seq:v.seq,kind:$('kind').value,amount:Number($('amount').value),slot:Number($('pair').value)});};
   $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(v.code);say('已複製房間代碼。');}catch{say('房間代碼：'+v.code);}};

@@ -76,3 +76,4 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
  #actions .top,#actions #move{grid-column:1/-1}
  #actions label{min-width:0;margin:0;font-size:.75rem;gap:2px}#actions select{width:100%;font-size:.85rem}
 }
+#control-notices{padding-left:20px;color:var(--gold);font-size:.85rem}#reclaim{border-color:#d5a865;color:#ffd693}
