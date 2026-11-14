@@ -60,3 +60,8 @@ button.accent,button.accent:hover:not(:disabled){background:linear-gradient(110d
 @media(min-width:770px){#room{grid-template-columns:minmax(0,1.24fr) minmax(0,1fr);align-items:start}#room>.room-bar{grid-column:1/-1}.board-card{grid-column:1;grid-row:2/span 4}#chamber,#actions,#chat,#history{grid-column:2}}
 @media(max-width:370px){#seats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important}}
+
+#dial-seats{z-index:2}.dial-pin{line-height:1;min-width:40px;min-height:40px;height:40px}.dial-pin:disabled{opacity:1;cursor:default}.dial-pin.selected{background:#544020;color:#ffe1a7;border:2px solid #efc882;box-shadow:0 0 16px #efc88270}
+#pair-hint{margin:.65em 0 0;font-size:.86rem}#move-feedback,#recap{border:1px solid #795f42;border-radius:10px;padding:9px 11px;background:#211a17;font-size:.9rem}
+#move-feedback.sent{border-color:#708d72;color:#cbebcd}#move-feedback.error,#move-feedback.auto{color:#ffc2a9}#recap h3{margin:0}#recap p{margin:.45em 0}#recap+.buttons{margin-top:8px}
+#dial-seats .dial-pin:not(:disabled){pointer-events:auto}
