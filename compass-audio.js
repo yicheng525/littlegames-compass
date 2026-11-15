@@ -4,7 +4,7 @@
   try{const saved=JSON.parse(localStorage.getItem(key));for(const k in enabled)if(typeof saved?.[k]==='boolean')enabled[k]=saved[k];}catch{}
   const effects={
     check:['singlebullet1.wav',.35],rotate:['rattle1.wav',.32],turn:['lightclunk1.wav',.33],
-    actionDone:['lightclunk1.wav',.41],lock:['clipload1.wav',.40],empty:['squeakyclick1.wav',.36],fire:['revolver-cv.wav',.55],end:['clank1.wav',.27]
+    actionDone:['lightclunk1.wav',.41],lock:['clipload1.wav',.40],empty:['squeakyclick1.wav',.36],fire:['range-shot.wav',.55],end:['clank1.wav',.27]
   };
   let ctx,track,musicGain,fxGain,playing=false;
   const samples=new Map(),active=new Set();

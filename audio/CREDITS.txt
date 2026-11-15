@@ -9,7 +9,7 @@ https://opengameart.org/content/gun-reload-sound-effects
 rattle1.wav, lightclunk1.wav, clank1.wav, squeakyclick1.wav
 https://opengameart.org/content/mechanical-sounds
 
-Revolver Gunshots — C-V, Freesound, CC0:
-https://freesound.org/people/C-V/sounds/835200/
-One shot excerpt from the public preview, converted to mono and gain-adjusted with a short fade.
+Range shot — johanwestling, Freesound, CC0:
+https://freesound.org/people/johanwestling/sounds/377786/
+A single shot excerpt from the public preview, converted to mono with reduced gain and a short tail fade.
 CC0: https://creativecommons.org/publicdomain/zero/1.0/
