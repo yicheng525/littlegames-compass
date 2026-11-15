@@ -9,7 +9,7 @@ https://opengameart.org/content/gun-reload-sound-effects
 rattle1.wav, lightclunk1.wav, clank1.wav, squeakyclick1.wav
 https://opengameart.org/content/mechanical-sounds
 
-Range shot — johanwestling, Freesound, CC0:
-https://freesound.org/people/johanwestling/sounds/377786/
-A single shot excerpt from the public preview, converted to mono with reduced gain and a short tail fade.
+Muffled Distant Explosion — NenadSimic, OpenGameArt, CC0:
+https://opengameart.org/content/muffled-distant-explosion
+Log-drum recording with reverb. Game excerpt downmixed to mono, reduced in gain and faded at the end.
 CC0: https://creativecommons.org/publicdomain/zero/1.0/
